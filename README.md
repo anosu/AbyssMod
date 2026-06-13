@@ -22,6 +22,7 @@
 - 剧情翻译
 - 关闭游戏内动态马赛克
 - 跳过进游戏时的音量提醒
+- 剧情角色语音不中断
 
 ---
 
@@ -54,9 +55,9 @@
 
 ### 4. 启动游戏
 
-正常启动游戏，如果这是你第一次安装 BepInEx，启动时会自动下载适配当前 Unity 版本的补丁，期间只显示一个控制台窗口，稍等片刻即可
+**正常启动游戏**（你之前怎么启动现在还是怎么启动），如果这是你第一次安装 BepInEx，启动时会自动下载适配当前 Unity 版本的补丁，期间只显示一个控制台窗口，稍等片刻即可
 
-> ⚠️ 如果你用了加速器（如 ACGP），控制台可能出现红色报错，说明无法直连 BepInEx 官网，请开启代理/梯子后重试
+> ⚠️ 如果你用了加速器（如 ACGP），控制台可能出现红色报错，说明可能无法直连 BepInEx 官网，请开启代理/梯子后重试
 
 ### 5. 配置文件
 
@@ -130,6 +131,14 @@
 <li>确认网络可以访问翻译 CDN（GitHub Raw，可能需要代理）</li>
 <li>按 <code>F8</code> 切换翻译开关</li>
 </ol>
+</details>
+
+<details>
+<summary><b>无法连接Github加载翻译</b></summary>
+可以在 <code>AbyssMod.cfg</code> 中将 <code>[Translation]</code> 部分的 <code>CDN</code> 修改为红凯提供的Gitee源： <code>https://raw.giteeusercontent.com/inv1ncible/quiet-rapture/raw/master/Backroom</code>
+
+同时将 <code>[Translation.Crypto]</code> 部分的 <code>Tag</code> 设为 <code>ENC:</code>，<code>Key</code> 设为 <code>woshitonghuadawang</code>
+
 </details>
 
 ### 社群
