@@ -4,6 +4,8 @@
 
 本仓库适用于 **Windows 平台 DMM Game Player 端**
 
+使用时如遇到问题请务必先阅读下面的[常见问题](#-常见问题)
+
 ---
 
 ## 📋 目录
@@ -115,8 +117,11 @@
 ## ❓ 常见问题
 
 <details>
-<summary><b>控制台窗口出现红色报错</b></summary>
+<summary><b>启动时控制台窗口出现红色报错</b></summary>
 通常是 BepInEx 无法连接其官网下载 Unity 补丁，请开启代理/梯子后重启游戏
+
+也可能是初始化文件是网络波动导致下载的文件损坏，此时可以尝试删除Mod文件然后重新安装
+
 </details>
 
 <details>
@@ -125,19 +130,17 @@
 </details>
 
 <details>
-<summary><b>翻译没有生效</b></summary>
-<ol>
-<li>检查 <code>AbyssMod.cfg</code> 中 <code>[Translation] Enabled</code> 是否为 <code>true</code></li>
-<li>确认网络可以访问翻译 CDN（GitHub Raw，可能需要代理）</li>
-<li>按 <code>F8</code> 切换翻译开关</li>
-</ol>
-</details>
-
-<details>
 <summary><b>无法连接Github加载翻译</b></summary>
-可以在 <code>AbyssMod.cfg</code> 中将 <code>[Translation]</code> 部分的 <code>CDN</code> 修改为红凯提供的Gitee源： <code>https://raw.giteeusercontent.com/inv1ncible/quiet-rapture/raw/master/Backroom</code>
+<ul>
+    <li>
+    可以尝试去网络上找一些Github镜像或者加速站点，如 <code>https://gh-proxy.com</code> 等，然后将CDN地址修改为镜像后的地址，如 <code>https://gh-proxy.com/https://raw.githubusercontent.com/anosu/dotabyss-translation/refs/heads/main/translations</code>
+    </li>
+    <li>
+    也可以在 <code>AbyssMod.cfg</code> 中将 <code>[Translation]</code> 部分的 <code>CDN</code> 修改为红凯提供的Gitee源： <code>https://raw.giteeusercontent.com/inv1ncible/quiet-rapture/raw/master/Backroom</code>，同时将 <code>[Translation.Crypto]</code> 部分的 <code>Tag</code> 设为 <code>ENC:</code>，<code>Key</code> 设为 <code>woshitonghuadawang</code>
+    </li>
+</ul>
 
-同时将 <code>[Translation.Crypto]</code> 部分的 <code>Tag</code> 设为 <code>ENC:</code>，<code>Key</code> 设为 <code>woshitonghuadawang</code>
+> 如果镜像站可用建议优先使用镜像站
 
 </details>
 
