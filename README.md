@@ -134,15 +134,7 @@
 </details>
 
 <details>
-<summary><b>无法连接Github加载翻译</b></summary>
-<ul>
-    <li>
-    可以尝试去网络上找一些Github镜像或者加速站点，如 <code>https://gh-proxy.com</code> 等，然后将CDN地址修改为镜像后的地址，如 <code>https://gh-proxy.com/https://raw.githubusercontent.com/anosu/dotabyss-translation/refs/heads/main/translations</code>
-    </li>
-    <li>
-    也可以在 <code>AbyssMod.cfg</code> 中将 <code>[Translation]</code> 部分的 <code>CDN</code> 修改为红凯提供的Gitee源： <code>https://raw.giteeusercontent.com/inv1ncible/quiet-rapture/raw/master/Backroom</code>，同时将 <code>[Translation.Crypto]</code> 部分的 <code>Tag</code> 设为 <code>ENC:</code>，<code>Key</code> 设为 <code>woshitonghuadawang</code>
-    </li>
-</ul>
+
 
 > 如果镜像站可用建议优先使用镜像站
 
