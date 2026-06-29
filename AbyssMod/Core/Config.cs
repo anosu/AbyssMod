@@ -4,52 +4,43 @@ using Utility.Toast;
 namespace AbyssMod;
 
 /// <summary>
-/// 全局配置管理器。
-/// 负责初始化所有配置项并绑定事件监听。
+/// 全局配置：初始化所有 BepInEx 配置项并绑定变更事件。
 /// </summary>
 public static class Config
 {
 #if DEBUG
-    #region Debug
     public static ConfigEntry<bool> Offline;
     public static ConfigEntry<string> OfflineAPI;
     public static ConfigEntry<string> DmmSdkAPI;
     public static bool OfflineStartup;
-    #endregion
 #endif
 
-    #region General
     public static ConfigEntry<bool> DynamicMosaic;
     public static ConfigEntry<bool> SoundCaution;
     public static ConfigEntry<bool> VoiceInterruption;
     public static ConfigEntry<bool> TitleMovie;
-    #endregion
 
-    #region Translation
     public static ConfigEntry<bool> Translation;
     public static ConfigEntry<string> TranslationCDN;
     public static ConfigEntry<string> TranslationLanguage;
     public static ConfigEntry<string> TranslationCryptoTag;
     public static ConfigEntry<string> TranslationCryptoKey;
-    #endregion
-
-    #region Font
     public static ConfigEntry<string> FontBundlePath;
-    #endregion
 
-    /// <summary>
-    /// 初始化配置系统。
-    /// </summary>
     public static void Initialize()
     {
         BindAllEntries();
-        BindSettingChangedLog();
+        Plugin.ConfigFile.SettingChanged += (_, e) =>
+        {
+            var c = e.ChangedSetting;
+            Logger.Info($"[{c.Definition.Section}] {c.Definition.Key} => {c.BoxedValue}");
+            Toast.Info($"[{c.Definition.Section}]", $"{c.Definition.Key} => {c.BoxedValue}");
+        };
     }
 
     private static void BindAllEntries()
     {
 #if DEBUG
-        #region Debug
         Offline = Plugin.ConfigFile.Bind("Debug.Offline", "Enabled", false, "API localization");
         OfflineAPI = Plugin.ConfigFile.Bind(
             "Debug.Offline",
@@ -63,10 +54,8 @@ public static class Config
             "http://localhost:33333/dmmsdk",
             "API for debugging"
         );
-        #endregion
 #endif
 
-        #region General
         DynamicMosaic = Plugin.ConfigFile.Bind(
             "General",
             "DynamicMosaic",
@@ -91,9 +80,7 @@ public static class Config
             true,
             "是否开启进入游戏时的标题动画"
         );
-        #endregion
 
-        #region Translation
         Translation = Plugin.ConfigFile.Bind(
             "Translation",
             "Enabled",
@@ -124,28 +111,11 @@ public static class Config
             "woshitonghuadawang",
             "翻译文本解密密钥（可选）"
         );
-        #endregion
-
-        #region Font
         FontBundlePath = Plugin.ConfigFile.Bind(
             "Translation.Font",
             "AssetBundlePath",
             $"{MyPluginInfo.PLUGIN_GUID}/fonts/ttcuyuanj",
             "TMP字体AssetBundle的路径，默认相对于插件目录，也可使用绝对路径"
         );
-        #endregion
-    }
-
-    /// <summary>
-    /// 绑定配置变更日志输出。
-    /// </summary>
-    private static void BindSettingChangedLog()
-    {
-        Plugin.ConfigFile.SettingChanged += (_, e) =>
-        {
-            var c = e.ChangedSetting;
-            Logger.Info($"[{c.Definition.Section}] {c.Definition.Key} => {c.BoxedValue}");
-            Toast.Info($"[{c.Definition.Section}]", $"{c.Definition.Key} => {c.BoxedValue}");
-        };
     }
 }

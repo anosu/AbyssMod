@@ -1,7 +1,7 @@
+using System.Collections.Generic;
 using AbyssMod.Services;
 using HarmonyLib;
 using Il2CppSystem;
-using Il2CppSystem.Collections.Generic;
 using Il2CppSystem.Threading;
 using Project.Library;
 using Project.MainStory;
@@ -16,7 +16,7 @@ using StringDictionary = System.Collections.Generic.Dictionary<string, string>;
 using StringStack = System.Collections.Generic.Stack<string>;
 
 /// <summary>
-/// 剧情翻译补丁：标题、人名、对话文本的翻译注入。
+/// 剧情与 UI 文本翻译补丁：覆盖标题、人名、对话及所有 TMP 文本。
 /// </summary>
 [HarmonyPatch]
 public static class TranslationPatch
@@ -24,30 +24,34 @@ public static class TranslationPatch
     private static NovelController _novelController;
     private static bool _uiTextsLoadRequested;
     private static bool _uiTextErrorLogged;
+    private static HashSet<string> _uiTextValueSet;
 
-    private static string NovelId
-    {
-        get => _novelController?._common?.ScriptId ?? string.Empty;
-    }
+    private static string NovelId => _novelController?._common?.ScriptId ?? string.Empty;
+
+    // ═══════════════════════════════════════
+    //  UI 文本翻译
+    // ═══════════════════════════════════════
 
     private static string TranslateUiText(TMP_Text text, string value)
     {
-        if (!Config.Translation.Value || Plugin.Trans == null || value == null)
-            return value;
-
-        if (value.Length == 0)
+        if (!Config.Translation.Value || Plugin.Trans == null || string.IsNullOrEmpty(value))
             return value;
 
         var uiTexts = GetUiTextTable();
         if (uiTexts == null || uiTexts.Count == 0)
             return value;
 
-        if (IsTranslatedUiText(uiTexts, value))
+        // 已是译文则跳过（O(1) 集合查找替代原有的 O(n) 字典值扫描）
+        if (_uiTextValueSet == null)
+            _uiTextValueSet = new HashSet<string>(uiTexts.Values, System.StringComparer.Ordinal);
+        if (_uiTextValueSet.Contains(value))
             return value;
 
+        // 直接文本匹配
         if (uiTexts.TryGetValue(value, out string translated) && !string.IsNullOrEmpty(translated))
             return translated;
 
+        // Transform 层级路径匹配
         string path = GetTransformPath(text?.transform);
         if (
             !string.IsNullOrEmpty(path)
@@ -57,17 +61,6 @@ public static class TranslationPatch
             return translated;
 
         return value;
-    }
-
-    private static bool IsTranslatedUiText(StringDictionary uiTexts, string value)
-    {
-        foreach (var translation in uiTexts.Values)
-        {
-            if (string.Equals(translation, value, System.StringComparison.Ordinal))
-                return true;
-        }
-
-        return false;
     }
 
     private static StringDictionary GetUiTextTable()
@@ -84,31 +77,7 @@ public static class TranslationPatch
                 Logger.Warn($"UI text translation load request skipped: {e.Message}");
             }
         }
-
         return Plugin.Trans.GetTable(TranslationPaths.UiTexts);
-    }
-
-    private static string TranslateStaticText(string tableName, string value)
-    {
-        if (string.IsNullOrEmpty(value))
-            return value;
-
-        var table = Plugin.Trans.GetTable(tableName);
-        return TryTranslate(table, value, out string translated) ? translated : value;
-    }
-
-    private static string TranslateNovelText(StringDictionary translation, string value)
-    {
-        return TryTranslate(translation, value, out string translated) ? translated : value;
-    }
-
-    private static bool TryTranslate(StringDictionary table, string value, out string translated)
-    {
-        translated = null;
-        return !string.IsNullOrEmpty(value)
-            && table != null
-            && table.TryGetValue(value, out translated)
-            && !string.IsNullOrEmpty(translated);
     }
 
     private static string GetTransformPath(Transform transform)
@@ -123,6 +92,97 @@ public static class TranslationPatch
         return string.Join("/", names);
     }
 
+    // ═══════════════════════════════════════
+    //  TMP 文本注入 — 4 入口复用同一核心
+    // ═══════════════════════════════════════
+
+    private static string TranslateOrKeep(TMP_Text instance, string value)
+    {
+        try
+        {
+            return TranslateUiText(instance, value);
+        }
+        catch (System.Exception e)
+        {
+            LogUiTextErrorOnce(e);
+        }
+        return value;
+    }
+
+    [HarmonyPrefix, HarmonyPatch(typeof(TMP_Text), "set_text")]
+    public static void SetUiText(TMP_Text __instance, ref string value) =>
+        value = TranslateOrKeep(__instance, value);
+
+    [HarmonyPrefix, HarmonyPatch(typeof(TMP_Text), nameof(TMP_Text.SetText), typeof(string))]
+    public static void SetUiTextBySetText(TMP_Text __instance, ref string sourceText) =>
+        sourceText = TranslateOrKeep(__instance, sourceText);
+
+    [
+        HarmonyPrefix,
+        HarmonyPatch(typeof(TMP_Text), nameof(TMP_Text.SetText), typeof(string), typeof(bool))
+    ]
+    public static bool SetUiTextBySetTextSync(
+        TMP_Text __instance,
+        ref string sourceText,
+        bool syncTextInputBox
+    )
+    {
+        __instance.text = TranslateOrKeep(__instance, sourceText);
+        return false;
+    }
+
+    [HarmonyPostfix, HarmonyPatch(typeof(TextMeshProUGUI), nameof(TextMeshProUGUI.OnEnable))]
+    public static void TranslateStaticUiText(TextMeshProUGUI __instance) =>
+        TranslateOnEnable(__instance);
+
+    [HarmonyPostfix, HarmonyPatch(typeof(TextMeshPro), nameof(TextMeshPro.OnEnable))]
+    public static void TranslateStaticUiText(TextMeshPro __instance) =>
+        TranslateOnEnable(__instance);
+
+    private static void TranslateOnEnable(TMP_Text text)
+    {
+        if (text == null)
+            return;
+        string translated = TranslateOrKeep(text, text.text);
+        if (!string.Equals(translated, text.text, System.StringComparison.Ordinal))
+            text.text = translated;
+    }
+
+    private static void LogUiTextErrorOnce(System.Exception e)
+    {
+        if (_uiTextErrorLogged)
+            return;
+        _uiTextErrorLogged = true;
+        Logger.Warn($"UI text translation failed; further errors suppressed: {e.Message}");
+    }
+
+    // ═══════════════════════════════════════
+    //  通用翻译查询辅助
+    // ═══════════════════════════════════════
+
+    private static string TranslateFrom(StringDictionary table, string value)
+    {
+        if (string.IsNullOrEmpty(value) || table == null)
+            return value;
+        return table.TryGetValue(value, out var t) && !string.IsNullOrEmpty(t) ? t : value;
+    }
+
+    private static string TranslateStatic(string tableName, string value) =>
+        TranslateFrom(Plugin.Trans.GetTable(tableName), value);
+
+    private static bool HasCurrentNovel() =>
+        Config.Translation.Value && Plugin.Trans.Novels.ContainsKey(NovelId);
+
+    public static bool TryGetCurrentNovel(out StringDictionary translation)
+    {
+        translation = null;
+        return HasCurrentNovel() && Plugin.Trans.Novels.TryGetValue(NovelId, out translation);
+    }
+
+    // ═══════════════════════════════════════
+    //  剧情翻译 Harmony 补丁
+    // ═══════════════════════════════════════
+
     [HarmonyPrefix]
     [HarmonyPatch(typeof(NovelController), nameof(NovelController.InitNovel))]
     public static void InitNovelController(NovelController __instance)
@@ -130,13 +190,10 @@ public static class TranslationPatch
         _novelController = __instance;
     }
 
-    public static bool TryGetCurrentNovel(out StringDictionary translation)
-    {
-        translation = null;
-        return Config.Translation.Value
-            && Plugin.Trans.Novels.TryGetValue(NovelId, out translation);
-    }
-
+    /// <summary>
+    /// 剧情目录解析后触发翻译加载。.Wait() 阻塞主线程是刻意为之 —
+    /// 必须确保翻译数据在后续文本渲染前就绪。
+    /// </summary>
     [HarmonyPostfix]
     [HarmonyPatch(typeof(NovelPathUtility), nameof(NovelPathUtility.GetNovelScenarioDirectory))]
     public static void SetupTranslation(string novelId)
@@ -145,7 +202,6 @@ public static class TranslationPatch
             return;
 
         Logger.Info($"NovelId: {novelId}");
-
         Plugin.Trans.GetNovelTranslationAsync(novelId).Wait();
     }
 
@@ -153,10 +209,10 @@ public static class TranslationPatch
     [HarmonyPatch(typeof(NovelScriptInfoUtility), nameof(NovelScriptInfoUtility.GetScriptInfo))]
     public static void SetTitleAndDescription(ValueTuple<string, string> __result)
     {
-        if (TryGetCurrentNovel(out var _))
+        if (HasCurrentNovel())
         {
-            __result.Item1 = TranslateStaticText("titles", __result.Item1);
-            __result.Item2 = TranslateStaticText("descriptions", __result.Item2);
+            __result.Item1 = TranslateStatic("titles", __result.Item1);
+            __result.Item2 = TranslateStatic("descriptions", __result.Item2);
         }
     }
 
@@ -164,16 +220,16 @@ public static class TranslationPatch
     [HarmonyPatch(typeof(NovelTitle), nameof(NovelTitle.SetTitle))]
     public static void SetTitle(ref string title)
     {
-        if (TryGetCurrentNovel(out var _))
-            title = TranslateStaticText("titles", title);
+        if (HasCurrentNovel())
+            title = TranslateStatic("titles", title);
     }
 
     [HarmonyPrefix]
     [HarmonyPatch(typeof(NovelViewMessageWindow), nameof(NovelViewMessageWindow.SetName))]
     public static void SetName(ref string name)
     {
-        if (TryGetCurrentNovel(out var _))
-            name = TranslateStaticText("names", name);
+        if (HasCurrentNovel())
+            name = TranslateStatic("names", name);
     }
 
     [HarmonyPrefix]
@@ -181,9 +237,12 @@ public static class TranslationPatch
     public static void SetText(List<Letter> letters, ref string message)
     {
         if (TryGetCurrentNovel(out var translation))
-            message = TranslateNovelText(translation, message);
+            message = TranslateFrom(translation, message);
     }
 
+    /// <summary>
+    /// 日志记录时将 &lt;user&gt; 替换为占位符以避免翻译系统误处理用户名。
+    /// </summary>
     [HarmonyPrefix]
     [HarmonyPatch(typeof(NovelModelMessageLog), nameof(NovelModelMessageLog.Add))]
     public static void SetLogAdd(
@@ -204,16 +263,18 @@ public static class TranslationPatch
     [HarmonyPatch(typeof(NovelLogPopup), nameof(NovelLogPopup.SetData))]
     public static void SetLog(ref List<NovelLogData> dataList)
     {
-        List<NovelLogData> list = new();
+        var list = new List<NovelLogData>();
+        bool hasNovel = TryGetCurrentNovel(out var translation);
+
         foreach (var data in dataList)
         {
             string name = data.Name?.Replace("%user%", "<user>");
             string message = data.Message?.Replace("%user%", "<user>");
 
-            if (TryGetCurrentNovel(out var translation))
+            if (hasNovel)
             {
-                name = TranslateStaticText("names", name);
-                message = TranslateNovelText(translation, message);
+                name = TranslateStatic("names", name);
+                message = TranslateFrom(translation, message);
             }
 
             list.Add(
@@ -236,7 +297,7 @@ public static class TranslationPatch
     public static void SetBalloon(CommandDotMessageData messageData)
     {
         if (TryGetCurrentNovel(out var translation))
-            messageData.Message = TranslateNovelText(translation, messageData.Message);
+            messageData.Message = TranslateFrom(translation, messageData.Message);
     }
 
     [HarmonyPrefix]
@@ -247,97 +308,6 @@ public static class TranslationPatch
     public static void SetTextCenter(NovelModelCommon common, CommandMessageTextData data)
     {
         if (TryGetCurrentNovel(out var translation))
-            data.Message = TranslateNovelText(translation, data.Message);
-    }
-
-    // Codex-added TMP UI translation: dynamic assignments pass through set_text.
-    [HarmonyPrefix]
-    [HarmonyPatch(typeof(TMP_Text), "set_text")]
-    public static void SetUiText(TMP_Text __instance, ref string value)
-    {
-        try
-        {
-            value = TranslateUiText(__instance, value);
-        }
-        catch (System.Exception e)
-        {
-            LogUiTextTranslationErrorOnce(e);
-        }
-    }
-
-    [HarmonyPrefix]
-    [HarmonyPatch(typeof(TMP_Text), nameof(TMP_Text.SetText), typeof(string))]
-    public static void SetUiTextBySetText(TMP_Text __instance, ref string sourceText)
-    {
-        try
-        {
-            sourceText = TranslateUiText(__instance, sourceText);
-        }
-        catch (System.Exception e)
-        {
-            LogUiTextTranslationErrorOnce(e);
-        }
-    }
-
-    [HarmonyPrefix]
-    [HarmonyPatch(typeof(TMP_Text), nameof(TMP_Text.SetText), typeof(string), typeof(bool))]
-    public static bool SetUiTextBySetTextSync(
-        TMP_Text __instance,
-        ref string sourceText,
-        bool syncTextInputBox
-    )
-    {
-        try
-        {
-            __instance.text = TranslateUiText(__instance, sourceText);
-        }
-        catch (System.Exception e)
-        {
-            LogUiTextTranslationErrorOnce(e);
-        }
-
-        return false;
-    }
-
-    // Codex-added TMP UI translation: prefab/static texts often only exist after OnEnable.
-    [HarmonyPostfix]
-    [HarmonyPatch(typeof(TextMeshProUGUI), nameof(TextMeshProUGUI.OnEnable))]
-    public static void TranslateStaticUiText(TextMeshProUGUI __instance)
-    {
-        TranslateStaticUiText((TMP_Text)__instance);
-    }
-
-    // Codex-added TMP UI translation: covers 3D/world TextMeshPro as well as UGUI.
-    [HarmonyPostfix]
-    [HarmonyPatch(typeof(TextMeshPro), nameof(TextMeshPro.OnEnable))]
-    public static void TranslateStaticUiText(TextMeshPro __instance)
-    {
-        TranslateStaticUiText((TMP_Text)__instance);
-    }
-
-    private static void TranslateStaticUiText(TMP_Text text)
-    {
-        if (text == null)
-            return;
-
-        try
-        {
-            string translated = TranslateUiText(text, text.text);
-            if (!string.Equals(translated, text.text, System.StringComparison.Ordinal))
-                text.text = translated;
-        }
-        catch (System.Exception e)
-        {
-            LogUiTextTranslationErrorOnce(e);
-        }
-    }
-
-    private static void LogUiTextTranslationErrorOnce(System.Exception e)
-    {
-        if (_uiTextErrorLogged)
-            return;
-
-        _uiTextErrorLogged = true;
-        Logger.Warn($"UI text translation failed; future errors will be suppressed: {e.Message}");
+            data.Message = TranslateFrom(translation, data.Message);
     }
 }

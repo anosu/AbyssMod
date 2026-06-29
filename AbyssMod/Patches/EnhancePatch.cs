@@ -1,4 +1,3 @@
-using System.Linq;
 using Absf;
 using Absf.Api;
 using HarmonyLib;
@@ -10,7 +9,7 @@ using UnityEngine.Networking;
 namespace AbyssMod.Patches;
 
 /// <summary>
-/// 游戏通用增强补丁：帧率修改 + 跳过大招动画。
+/// 游戏通用增强：关闭动态马赛克、音量警告、标题动画、语音中断控制、网络超时。
 /// </summary>
 [HarmonyPatch]
 public static class EnhancePatch
@@ -24,11 +23,15 @@ public static class EnhancePatch
         if (Config.DynamicMosaic.Value)
             return;
 
-        __instance
-            .GetDrawables()
-            ?.Where(d => d.name.StartsWith("Mosaic_") || d.name.StartsWith("MosaicInsted_"))
-            .ToList()
-            .ForEach(d => d.gameObject.SetActive(false));
+        var drawables = __instance.GetDrawables();
+        if (drawables == null)
+            return;
+
+        foreach (var d in drawables)
+        {
+            if (d.name.StartsWith("Mosaic_") || d.name.StartsWith("MosaicInsted_"))
+                d.gameObject.SetActive(false);
+        }
     }
 
     [HarmonyPrefix]
@@ -43,7 +46,6 @@ public static class EnhancePatch
             __instance._onClickOk.Invoke();
             return false;
         }
-
         return true;
     }
 
@@ -80,9 +82,7 @@ public static class EnhancePatch
     public static void DisableTitleMovie(Project.Title.TopView __instance, CancellationToken ct)
     {
         if (!Config.TitleMovie.Value)
-        {
             __instance.MovieSkip(ct);
-        }
     }
 
     [HarmonyPrefix]

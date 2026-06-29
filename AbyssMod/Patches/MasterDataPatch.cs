@@ -44,9 +44,7 @@ public static class MasterDataPatch
                 return;
 
             var arrayStart = MasterMapping.GetArrayStartPointer(arrayPtr);
-            var dictCache = new Dictionary<string, Dictionary<string, string>>(
-                StringComparer.Ordinal
-            );
+            var dictCache = new Dictionary<(string, string), Dictionary<string, string>>();
 
             int count = 0;
             for (int i = 0; i < rowCount; i++)
@@ -66,7 +64,7 @@ public static class MasterDataPatch
     private static int TranslateRow(
         IntPtr rowPtr,
         TableMapping table,
-        Dictionary<string, Dictionary<string, string>> dictCache
+        Dictionary<(string, string), Dictionary<string, string>> dictCache
     )
     {
         int count = 0;
@@ -97,15 +95,15 @@ public static class MasterDataPatch
     private static Dictionary<string, string> GetCachedTable(
         string dictName,
         string fieldName,
-        Dictionary<string, Dictionary<string, string>> dictCache
+        Dictionary<(string, string), Dictionary<string, string>> dictCache
     )
     {
-        string cacheKey = $"{dictName}\0{fieldName}";
-        if (dictCache.TryGetValue(cacheKey, out var dict))
+        var key = (dictName, fieldName);
+        if (dictCache.TryGetValue(key, out var dict))
             return dict;
 
         dict = Plugin.Trans.GetFieldTable(dictName, fieldName);
-        dictCache[cacheKey] = dict;
+        dictCache[key] = dict;
         return dict;
     }
 

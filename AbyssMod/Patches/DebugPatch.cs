@@ -4,31 +4,26 @@ using Dmm.Games.Sdk;
 using Dmm.Games.Sdk.Net.Unity;
 using Dmm.Games.Sdk.Recibo.Api;
 using HarmonyLib;
-using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using Project;
 
 namespace AbyssMod.Patches;
 
-/// <summary>
-/// 调试补丁
-/// </summary>
 [HarmonyPatch]
 public static class DebugPatch
 {
+    private static bool IsOffline => Config.OfflineStartup || Config.Offline.Value;
+
     [HarmonyPrefix]
     [HarmonyPatch(typeof(CommandLineArgs), nameof(CommandLineArgs.Parse))]
     public static bool SetLaunchArgs(CommandLineArgs __instance, ref bool __result)
     {
-        if (Config.OfflineStartup || Config.Offline.Value)
+        if (IsOffline)
         {
             __instance.OpenId = "114514";
             __instance.AccessToken = "1919810";
-
             __result = true;
-
             return false;
         }
-
         return true;
     }
 
@@ -36,20 +31,16 @@ public static class DebugPatch
     [HarmonyPatch(typeof(RuntimeConfig), nameof(RuntimeConfig.GetApiUrl))]
     public static void SetApiUrl(ref string __result)
     {
-        if (Config.OfflineStartup || Config.Offline.Value)
-        {
+        if (IsOffline)
             __result = Config.OfflineAPI.Value;
-        }
     }
 
     [HarmonyPrefix]
     [HarmonyPatch(typeof(HttpClientUnityImpl), nameof(HttpClientUnityImpl.Request))]
     public static void SetDmmSdkUrl(ref string url)
     {
-        if (Config.OfflineStartup || Config.Offline.Value)
-        {
+        if (IsOffline)
             url = url.Replace("https://ae.recibo.games.dmm.com", Config.DmmSdkAPI.Value);
-        }
     }
 }
 #endif

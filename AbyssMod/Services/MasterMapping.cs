@@ -31,7 +31,7 @@ public class TableMapping
 }
 
 /// <summary>
-/// 解析嵌入资源 Config/master.json，构建「IL2CPP 类名 → TableMapping」索引，
+/// 解析嵌入资源 master_mapping.json，构建「IL2CPP 类名 → TableMapping」索引，
 /// 并在加载期解析每个字段的指针与偏移（等价于编译期属性 getter/setter 的内部逻辑）。
 ///
 /// <para>JSON 中 tables 的键直接使用 MasterData/static 的 snake_case 表名。</para>
@@ -44,6 +44,9 @@ public static class MasterMapping
 
     /// <summary>IL2CPP 类名 → 该表的字段映射。加载后只读。</summary>
     public static Dictionary<string, TableMapping> Tables { get; private set; } = new();
+
+    /// <summary>所有需加载的翻译资源类型列表。由 Load() 填充。</summary>
+    public static IReadOnlyList<string> ContentTypes { get; private set; } = Array.Empty<string>();
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -70,7 +73,7 @@ public static class MasterMapping
             {
                 Logger.Error("[MasterMapping] missing 'tables' property");
                 Tables = new();
-                TranslationPaths.SetContentTypes(ReadFlatTypes(doc.RootElement));
+                ContentTypes = ReadFlatTypes(doc.RootElement);
                 return;
             }
 
@@ -90,7 +93,7 @@ public static class MasterMapping
             foreach (var type in ReadFlatTypes(doc.RootElement))
                 AddContentType(contentTypes, contentTypeSet, type);
 
-            TranslationPaths.SetContentTypes(contentTypes);
+            ContentTypes = contentTypes;
             Tables = result;
             Logger.Info(
                 $"[MasterMapping] loaded {result.Count} tables, {CountFields(result)} fields"
@@ -258,26 +261,6 @@ public static class MasterMapping
             Logger.Error($"[MasterMapping] resolve {className} failed: {e.Message}");
             return IntPtr.Zero;
         }
-    }
-
-    /// <summary>
-    /// 遍历 native 数组，返回每个元素的 native 指针。
-    /// 不依赖泛型 wrapper（避免托管类型查找和对象池缓存问题），直接按 IL2CPP 数组内存布局读取。
-    /// </summary>
-    public static unsafe List<IntPtr> GetArrayElements(IntPtr arrayPtr)
-    {
-        if (arrayPtr == IntPtr.Zero)
-            return null;
-
-        int length = GetArrayLength(arrayPtr);
-        var result = new List<IntPtr>(length);
-
-        var start = GetArrayStartPointer(arrayPtr);
-
-        for (int i = 0; i < length; i++)
-            result.Add(GetArrayElement(start, i));
-
-        return result;
     }
 
     public static int GetArrayLength(IntPtr arrayPtr) =>

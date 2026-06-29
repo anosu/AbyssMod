@@ -22,8 +22,8 @@ public class Plugin : BasePlugin
     private const int PooledConnectionLifetimeMinutes = 5;
     private const int PooledConnectionIdleTimeoutMinutes = 2;
 
-    public static ConfigFile ConfigFile;
     public static new ManualLogSource Log;
+    public static ConfigFile ConfigFile;
     public static MonoBehaviour Instance;
     public static TranslationManager Trans;
 
@@ -62,12 +62,12 @@ public class Plugin : BasePlugin
 
     private static void Initialize()
     {
-        var socketsHandler = new SocketsHttpHandler
+        var handler = new SocketsHttpHandler
         {
             PooledConnectionLifetime = TimeSpan.FromMinutes(PooledConnectionLifetimeMinutes),
             PooledConnectionIdleTimeout = TimeSpan.FromMinutes(PooledConnectionIdleTimeoutMinutes),
         };
-        var httpClient = new HttpClient(new CryptoHandler(socketsHandler))
+        var httpClient = new HttpClient(new CryptoHandler(handler))
         {
             Timeout = TimeSpan.FromSeconds(HttpTimeoutSeconds),
         };
@@ -82,11 +82,12 @@ public class Plugin : BasePlugin
             httpClient
         );
 
-        string path = AbyssMod.Config.FontBundlePath.Value;
-        string resolvedPath = Path.IsPathRooted(path) ? path : Path.Combine(Paths.PluginPath, path);
+        string fontPath = AbyssMod.Config.FontBundlePath.Value;
+        string resolvedPath = Path.IsPathRooted(fontPath)
+            ? fontPath
+            : Path.Combine(Paths.PluginPath, fontPath);
 
-        var font = new FontHelper(resolvedPath);
-        Trans = new TranslationManager(cache, font);
+        Trans = new TranslationManager(cache, new FontHelper(resolvedPath));
     }
 
     public override bool Unload()
