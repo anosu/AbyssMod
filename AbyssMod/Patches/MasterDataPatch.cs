@@ -59,7 +59,7 @@ public static class MasterDataPatch
         }
         catch (Exception e)
         {
-            Plugin.Log.LogError($"[MasterDataTranslation] threw: {e}");
+            Logger.Error($"[MasterDataTranslation] threw: {e}");
         }
     }
 

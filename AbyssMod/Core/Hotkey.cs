@@ -44,9 +44,4 @@ public class Hotkey : MonoBehaviour
         _lastPressTime[key] = now;
         return true;
     }
-
-    private static bool IsAltPressed()
-    {
-        return Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
-    }
 }
