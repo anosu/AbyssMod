@@ -1,7 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <!-- Per-user path. Override in a gitignored Directory.Build.props at the repo root,
-         or pass it on the command line: dotnet build -p:GameDir=... -->
+    <!-- Per-user path. Set a GameDir environment variable to override on your machine. -->
     <GameDir Condition="'$(GameDir)' == ''">E:\Games\DMM GAMES\dotabyss_x_cl</GameDir>
     <Authors>Jitsu</Authors>
   </PropertyGroup>
@@ -33,13 +32,20 @@
     <GenerateAssemblyInfo>True</GenerateAssemblyInfo>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <!-- Resolve Utility.dll from whichever source exists on this machine:
+         the sibling Utility project's build output, or the deployed copy under GameDir. -->
+    <UtilityDll Condition="Exists('..\..\Utility\Utility\bin\Release\net6.0\Utility.dll')">..\..\Utility\Utility\bin\Release\net6.0\Utility.dll</UtilityDll>
+    <UtilityDll Condition="'$(UtilityDll)' == '' And Exists('$(BaseOutputPath)\Utility.dll')">$(BaseOutputPath)\Utility.dll</UtilityDll>
+  </PropertyGroup>
+
   <ItemGroup>
     <GameDlls Include="$(GameDir)\BepInEx\interop\*.dll"></GameDlls>
     <Reference Include="@(GameDlls)">
       <Private>false</Private>
     </Reference>
     <Reference Include="Utility">
-      <HintPath>..\..\Utility\Utility\bin\Release\net6.0\Utility.dll</HintPath>
+      <HintPath>$(UtilityDll)</HintPath>
       <Private>True</Private>
     </Reference>
   </ItemGroup>
