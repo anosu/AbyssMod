@@ -12,8 +12,8 @@ using UnityEngine;
 
 namespace AbyssMod.Patches;
 
-using StringDictionary = System.Collections.Generic.Dictionary<string, string>;
-using StringStack = System.Collections.Generic.Stack<string>;
+using StringDictionary = Dictionary<string, string>;
+using StringStack = Stack<string>;
 
 /// <summary>
 /// 剧情与 UI 文本翻译补丁：覆盖标题、人名、对话及所有 TMP 文本。
@@ -234,7 +234,10 @@ public static class TranslationPatch
 
     [HarmonyPrefix]
     [HarmonyPatch(typeof(NovelText), nameof(NovelText.Parse))]
-    public static void SetText(List<Letter> letters, ref string message)
+    public static void SetText(
+        Il2CppSystem.Collections.Generic.List<Letter> letters,
+        ref string message
+    )
     {
         if (TryGetCurrentNovel(out var translation))
             message = TranslateFrom(translation, message);
@@ -261,9 +264,9 @@ public static class TranslationPatch
 
     [HarmonyPrefix]
     [HarmonyPatch(typeof(NovelLogPopup), nameof(NovelLogPopup.SetData))]
-    public static void SetLog(ref List<NovelLogData> dataList)
+    public static void SetLog(ref Il2CppSystem.Collections.Generic.List<NovelLogData> dataList)
     {
-        var list = new List<NovelLogData>();
+        var list = new Il2CppSystem.Collections.Generic.List<NovelLogData>();
         bool hasNovel = TryGetCurrentNovel(out var translation);
 
         foreach (var data in dataList)
