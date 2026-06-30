@@ -10,7 +10,7 @@
     <TargetFramework>net6.0</TargetFramework>
     <AssemblyName>AbyssMod</AssemblyName>
     <Product>AbyssMod</Product>
-    <Version>1.0.5</Version>
+    <Version>1.0.6</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>latest</LangVersion>
     <RestoreAdditionalProjectSources>
