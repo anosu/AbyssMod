@@ -1,6 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <GameDir>E:\Games\DMM GAMES\dotabyss_x_cl</GameDir>
+    <!-- Per-user path. Override in a gitignored Directory.Build.props at the repo root,
+         or pass it on the command line: dotnet build -p:GameDir=... -->
+    <GameDir Condition="'$(GameDir)' == ''">E:\Games\DMM GAMES\dotabyss_x_cl</GameDir>
     <Authors>Jitsu</Authors>
   </PropertyGroup>
 
