@@ -6,6 +6,7 @@
 
 使用时如遇到问题请务必先阅读下面的[常见问题](#-常见问题)
 
+翻译反馈通道(Discord):https://discord.gg/RjsDFuEuBy
 ---
 
 ## 📋 目录
