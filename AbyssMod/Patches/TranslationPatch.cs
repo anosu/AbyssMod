@@ -188,22 +188,6 @@ public static class TranslationPatch
     //  剧情翻译 Harmony 补丁
     // ═══════════════════════════════════════
 
-    /// <summary>
-    /// 在游戏处理 &lt;user&gt; 等脚本占位符之前翻译原始字符串参数。
-    /// </summary>
-    [HarmonyPostfix]
-    [HarmonyPatch(
-        typeof(NovelArguments),
-        nameof(NovelArguments.GetString),
-        typeof(int),
-        typeof(string)
-    )]
-    public static void TranslateNovelArgument(ref string __result)
-    {
-        if (TryGetCurrentNovel(out var translation))
-            __result = TranslateFrom(translation, __result);
-    }
-
     [HarmonyPrefix]
     [HarmonyPatch(typeof(NovelController), nameof(NovelController.InitNovel))]
     public static void InitNovelController(NovelController __instance)
