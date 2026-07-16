@@ -2,6 +2,7 @@ using Absf;
 using Absf.Api;
 using HarmonyLib;
 using Il2CppSystem.Threading;
+using Project.Nether.FloorSelection;
 using Project.Notice;
 using Project.Novel;
 using UnityEngine.Networking;
@@ -91,4 +92,20 @@ public static class EnhancePatch
     {
         value = 60;
     }
+
+    //[HarmonyPrefix]
+    //[HarmonyPatch(
+    //    typeof(NetherMapViewController),
+    //    nameof(NetherMapViewController.UpdateMapViewVisibilityStates)
+    //)]
+    //public static void SetNetherFloorVisibility(
+    //    NetherMapModel mapModel,
+    //    ref NetherFloorModel currentFloorModel
+    //)
+    //{
+    //    currentFloorModel = new NetherFloorModel
+    //    {
+    //        FloorLevel = int.MaxValue - NetherMapViewController.VisibleFloorLevelOffset,
+    //    };
+    //}
 }

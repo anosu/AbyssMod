@@ -1,13 +1,17 @@
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
+using Absf;
 using Absf.Novel;
 using AbyssMod.Services;
 using HarmonyLib;
 using Il2CppSystem;
 using Il2CppSystem.Threading;
+using Project;
 using Project.Library;
 using Project.MainStory;
 using Project.Novel;
 using Project.Outgame;
+using Project.User;
 using TMPro;
 using UnityEngine;
 
@@ -322,12 +326,29 @@ public static class TranslationPatch
 
     [HarmonyPrefix]
     [HarmonyPatch(
-        typeof(NovelMessageTextComponent),
-        nameof(NovelMessageTextComponent.SetMessageText)
+        typeof(NovelCmdMessageTextCenter),
+        nameof(NovelCmdMessageTextCenter.OnCommandStartASync)
     )]
-    public static void SetTextCenter(NovelModelCommon common, CommandMessageTextData data)
+    public static void SetTextCenter(NovelArguments args)
     {
+        string message = args.GetString(2);
+        if (!string.IsNullOrEmpty(message) && message.Contains("<user>"))
+            args._list[2] = NovelArgument.SetString(message.Replace("<user>", "%user%"));
+    }
+
+    [HarmonyPrefix]
+    [HarmonyPatch(typeof(NovelModelMessageText), nameof(NovelModelMessageText.SetMessage))]
+    public static void SetMessageText(CommandMessageTextData data)
+    {
+        data.Message = data.Message?.Replace("%user%", "<user>");
+
         if (TryGetCurrentNovel(out var translation))
             data.Message = TranslateFrom(translation, data.Message);
+
+        string userName = Engine.Get<UserData>().UserStatus.Name.Value;
+        string displayName = StringUtility.ToDisplayUserName(userName);
+
+        if (!string.IsNullOrEmpty(data.Message) && data.Message.Contains("<user>"))
+            data.Message = Regex.Replace(data.Message, "<user>", displayName);
     }
 }

@@ -40,7 +40,7 @@ public static class DebugPatch
     public static void SetDmmSdkUrl(ref string url)
     {
         if (IsOffline)
-            url = url.Replace("https://ae.recibo.games.dmm.com", Config.DmmSdkAPI.Value);
+            url = url.Replace("https://", Config.DmmSdkAPI.Value);
     }
 }
 #endif
