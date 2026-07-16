@@ -329,10 +329,11 @@ public static class TranslationPatch
         if (TryGetCurrentNovel(out var translation))
             data.Message = TranslateFrom(translation, data.Message);
 
-        string userName = Engine.Get<UserData>().UserStatus.Name.Value;
-        string displayName = StringUtility.ToDisplayUserName(userName);
-
         if (!string.IsNullOrEmpty(data.Message) && data.Message.Contains("<user>"))
+        {
+            string userName = Engine.Get<UserData>().UserStatus.Name.Value;
+            string displayName = StringUtility.ToDisplayUserName(userName);
             data.Message = Regex.Replace(data.Message, "<user>", displayName);
+        }
     }
 }
