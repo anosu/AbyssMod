@@ -142,8 +142,7 @@
 
 ### 社群
 
-- QQ群：[731843659](https://qm.qq.com/q/u80uVbzfNK)满，[453330625](https://qm.qq.com/q/5ccunRbE0E)（二群）
-- 海外詢問： 添加Discord好友 :.lienchu9420（Lienchu恋曲）
+- QQ群：[731843659](https://qm.qq.com/q/u80uVbzfNK)
 
 ---
 
