@@ -222,14 +222,10 @@ public static class TranslationPatch
         if (string.IsNullOrEmpty(sourceText) || translation == null)
             return sourceText;
 
-        string lookupValue = string.IsNullOrEmpty(displayName)
-            ? sourceText
-            : sourceText.Replace(displayName, UserPlaceholder, StringComparison.Ordinal);
-
         if (targetTranslated)
         {
             if (
-                translation.TryGetValue(lookupValue, out string translatedText)
+                translation.TryGetValue(sourceText, out string translatedText)
                 && !string.IsNullOrEmpty(translatedText)
             )
                 return ExpandUserPlaceholder(translatedText, displayName);
@@ -239,7 +235,7 @@ public static class TranslationPatch
 
         foreach (var entry in translation)
         {
-            if (string.Equals(entry.Value, lookupValue, StringComparison.Ordinal))
+            if (string.Equals(entry.Value, sourceText, StringComparison.Ordinal))
                 return ExpandUserPlaceholder(entry.Key, displayName);
         }
 
