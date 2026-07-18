@@ -218,6 +218,14 @@ public static class TranslationPatch
             && Plugin.Trans.Novels.TryGetValue(NovelId, out translation);
     }
 
+    private static bool TryGetNovel(string novelId, out StringDictionary translation)
+    {
+        translation = null;
+        return Plugin.Trans != null
+            && !string.IsNullOrEmpty(novelId)
+            && Plugin.Trans.Novels.TryGetValue(novelId, out translation);
+    }
+
     private static string SelectNovelMessage(
         StringDictionary translation,
         string value,
@@ -501,14 +509,13 @@ public static class TranslationPatch
     public static void SetLog(ref Il2CppSystem.Collections.Generic.List<NovelLogData> dataList)
     {
         var list = new Il2CppSystem.Collections.Generic.List<NovelLogData>();
-        bool hasNovel = TryGetCurrentNovel(out var translation);
 
         foreach (var data in dataList)
         {
             string name = RestoreUserPlaceholder(data.Name);
             string message = RestoreUserPlaceholder(data.Message);
 
-            if (hasNovel)
+            if (IsTranslationEnabled() && TryGetNovel(data.ScriptId, out var translation))
             {
                 name = TranslateStatic(NamesTable, name);
                 message = TranslateFrom(translation, message);
