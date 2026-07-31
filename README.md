@@ -91,7 +91,7 @@
 | ---------- | -------------------------------------------- | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
 | `Enabled`  | `true`（开启），`false`（关闭）              | `true`                                                                                      | 是否开启游戏内剧情翻译                                                  |
 | `CDN`      | 任意有效的 CDN URL 地址                      | `https://raw.githubusercontent.com/anosu/dotabyss-translation/refs/heads/main/translations` | 翻译数据 CDN 地址                                                       |
-| `Language` | `zh_Hans`（简体中文），`zh_Hant`（繁體中文） | `zh_Hans`                                                                                   | 翻译语言，支持 `zh_Hans` 简体中文与`zh_Hant` 繁體中文（群友"戀曲"提供） |
+| `Language` | `zh_Hans`（简体中文）                        | `zh_Hans`                                                                                   | 翻译语言，支持 `zh_Hans` 简体中文 |
 
 ### `[Translation.Font]`
 
@@ -134,11 +134,6 @@
 编辑 <code>BepInEx\config\BepInEx.cfg</code>，找到 <code>[Logging.Console]</code>，将 <code>Enabled</code> 设为 <code>false</code>
 </details>
 
-<details>
-<summary><b>更改成繁體中文</b></summary>
-<code>BepInEx\config\AbyssMod.cfg</code> 中 <code>Language=zh_Hans</code> 改成 <code>Language=zh_Hant</code>
-
-</details>
 
 ### 社群
 
