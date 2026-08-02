@@ -5,6 +5,7 @@
 本仓库适用于 **Windows 平台 DMM Game Player 端**
 
 使用时如遇到问题请务必先阅读下面的[常见问题](#-常见问题)
+
 挂一条举报狗，QQ 1467285255
 <img width="629" height="147" alt="389a20576b1adf4f58913fa320594d77" src="https://github.com/user-attachments/assets/03bd4c6f-71f8-43fd-aff9-5640e78dfa83" />
 
