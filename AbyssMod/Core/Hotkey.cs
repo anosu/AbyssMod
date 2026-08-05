@@ -15,6 +15,8 @@ public class Hotkey : MonoBehaviour
 
     private void Update()
     {
+        EnhancePatch.SaveNovelLive2DScaleIfDue();
+
         if (Input.GetKeyDown(KeyCode.F8) && CanTrigger(KeyCode.F8))
         {
             Config.Translation.Value = !Config.Translation.Value;
@@ -26,6 +28,7 @@ public class Hotkey : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.F10) && CanTrigger(KeyCode.F10))
         {
             Plugin.ConfigFile.Reload();
+            EnhancePatch.ReloadNovelLive2DScale();
             Logger.Info("Config reloaded");
         }
     }

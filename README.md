@@ -27,6 +27,7 @@
 - 跳过进游戏时的音量提醒
 - 剧情角色语音不中断
 - 关闭进游戏时的标题动画
+- 按住 `Ctrl` 滚动鼠标滚轮调整剧情 Live2D 大小
 
 ---
 
@@ -84,6 +85,7 @@
 | `SoundCaution`      | `false` | 是否弹出音量提醒   |
 | `VoiceInterruption` | `false` | 是否启用语音中断   |
 | `TitleMovie`        | `true`  | 是否播放标题动画   |
+| `NovelLive2DScale`  | `1.0`   | 剧情 Live2D 缩放比例（范围 `0.1` 至 `10.0`） |
 
 ### `[Translation]`
 

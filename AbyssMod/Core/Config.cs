@@ -19,6 +19,7 @@ public static class Config
     public static ConfigEntry<bool> SoundCaution;
     public static ConfigEntry<bool> VoiceInterruption;
     public static ConfigEntry<bool> TitleMovie;
+    public static ConfigEntry<float> NovelLive2DScale;
 
     public static ConfigEntry<bool> Translation;
     public static ConfigEntry<string> TranslationCDN;
@@ -79,6 +80,15 @@ public static class Config
             "TitleMovie",
             true,
             "是否开启进入游戏时的标题动画"
+        );
+        NovelLive2DScale = Plugin.ConfigFile.Bind(
+            "General",
+            "NovelLive2DScale",
+            1.0f,
+            new ConfigDescription(
+                "剧情 Live2D 的缩放比例；按住 Ctrl 滚动鼠标滚轮调整",
+                new AcceptableValueRange<float>(0.1f, 10.0f)
+            )
         );
 
         Translation = Plugin.ConfigFile.Bind(

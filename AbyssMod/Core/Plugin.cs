@@ -92,6 +92,7 @@ public class Plugin : BasePlugin
 
     public override bool Unload()
     {
+        EnhancePatch.FlushNovelLive2DScale();
         Toast.Clear();
         return base.Unload();
     }
