@@ -1,5 +1,9 @@
 # AbyssMod
 
+<!-- hy-mt2-i18n:start -->
+**中文** · [English](./README_en.md) · [日本語](./README_ja.md) · [Español](./README_es.md)
+<!-- hy-mt2-i18n:end -->
+
 > 🎮 鸡渊汉化MOD
 
 本仓库适用于 **Windows 平台 DMM Game Player 端**
@@ -66,7 +70,7 @@
 
 ### 5. 配置文件
 
-首次运行后，`BepInEx\config\` 目录下会生成两个配置文件：
+首次运行后，`BepInEx\\config\\` 目录下会生成两个配置文件：
 
 | 文件           | 用途                                 |
 | -------------- | ------------------------------------ |
@@ -133,7 +137,7 @@
 
 <details>
 <summary><b>如何隐藏控制台窗口</b></summary>
-编辑 <code>BepInEx\config\BepInEx.cfg</code>，找到 <code>[Logging.Console]</code>，将 <code>Enabled</code> 设为 <code>false</code>
+编辑 <code>BepInEx\\config\\BepInEx.cfg</code>，找到 <code>[Logging.Console]</code>，将 <code>Enabled</code> 设为 <code>false</code>
 </details>
 
 
