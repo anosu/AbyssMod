@@ -86,7 +86,7 @@ public static class Config
             "NovelLive2DScale",
             1.0f,
             new ConfigDescription(
-                "剧情 Live2D 的缩放比例；按住 Ctrl 滚动鼠标滚轮调整",
+                "剧情 Live2D 的缩放倍率；按住 Ctrl 滚动鼠标滚轮调整",
                 new AcceptableValueRange<float>(0.1f, 10.0f)
             )
         );

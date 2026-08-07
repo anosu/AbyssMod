@@ -84,7 +84,7 @@
 | `SoundCaution`      | `false` | 是否弹出音量提醒   |
 | `VoiceInterruption` | `false` | 是否启用语音中断   |
 | `TitleMovie`        | `true`  | 是否播放标题动画   |
-| `NovelLive2DScale`  | `1.0`   | 剧情 Live2D 缩放比例（范围 `0.1` 至 `10.0`） |
+| `NovelLive2DScale`  | `1.0`   | 剧情 Live2D 缩放倍率，范围 `0.1` 至 `10.0`） |
 
 ### `[Translation]`
 

@@ -15,7 +15,7 @@ public class Hotkey : MonoBehaviour
 
     private void Update()
     {
-        EnhancePatch.SaveNovelLive2DScaleIfDue();
+        EnhancePatch.UpdateNovelLive2DScale();
 
         if (Input.GetKeyDown(KeyCode.F8) && CanTrigger(KeyCode.F8))
         {
