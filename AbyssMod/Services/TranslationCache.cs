@@ -19,12 +19,11 @@ public class TranslationCache
     private readonly string _cdn;
     private readonly string _cacheDir;
     private readonly string _language;
+    private readonly bool _preferLocalFiles;
     private readonly HttpClient _client;
     private Manifest _manifest;
 
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _locks = new();
-    private int _lockCleanupCounter;
-    private const int LockCleanupInterval = 32;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -34,16 +33,21 @@ public class TranslationCache
 
     private static readonly Encoding Utf8 = new UTF8Encoding(false);
 
-    public TranslationCache(string cdn, string cacheDir, string language, HttpClient client)
+    public TranslationCache(
+        string cdn,
+        string cacheDir,
+        string language,
+        bool preferLocalFiles,
+        HttpClient client
+    )
     {
         _cdn = cdn.TrimEnd('/');
         _cacheDir = cacheDir;
         _language = language;
+        _preferLocalFiles = preferLocalFiles;
         _client = client;
 
-        var langDir = Path.Combine(_cacheDir, _language);
-        Directory.CreateDirectory(langDir);
-        Directory.CreateDirectory(Path.Combine(langDir, TranslationPaths.Novels));
+        Directory.CreateDirectory(_cacheDir);
     }
 
     public Manifest Manifest => _manifest;
@@ -52,8 +56,9 @@ public class TranslationCache
 
     public async Task FetchManifestAsync()
     {
-        var url = TranslationPaths.BuildRemoteUrl(_cdn, TranslationPaths.Manifest, _language);
-        var path = TranslationPaths.BuildCachePath(_cacheDir, TranslationPaths.Manifest, _language);
+        var relativePath = TranslationPaths.BuildRelativePath(TranslationPaths.Manifest, _language);
+        var url = TranslationPaths.BuildRemoteUrl(_cdn, relativePath);
+        var path = TranslationPaths.BuildCachePath(_cacheDir, relativePath);
         var cachedHash = TryReadManifestHash(path);
 
         try
@@ -75,7 +80,7 @@ public class TranslationCache
                     )
                         Logger.Info("[翻译更新] CDN 有新版本翻译内容");
 
-                    await File.WriteAllTextAsync(path, json, Utf8);
+                    TryWriteTextFile(path, json);
                     Logger.Info($"Manifest loaded ({_language}). Hash: {_manifest.Hash}");
                     return;
                 }
@@ -117,113 +122,107 @@ public class TranslationCache
 
     // ══ Public load API ════════════════════════════════════════════════════
 
-    public async Task<Dictionary<string, string>> LoadAsync(string type, string id = null)
+    public Task<Dictionary<string, string>> LoadAsync(string type, string id = null)
     {
-        string cacheKey = id != null ? $"{_language}/{type}/{id}" : $"{_language}/{type}";
-        string expectedHash = GetManifestHash(type, id);
-
-        if (_manifest != null && expectedHash == null)
-        {
-            Logger.Info($"Manifest has no entry for {cacheKey}, skipped.");
-            return new Dictionary<string, string>();
-        }
-
-        return await LoadWithCacheAsync<Dictionary<string, string>>(
-            cacheKey,
-            TranslationPaths.BuildRemoteUrl(_cdn, type, _language, id),
-            TranslationPaths.BuildCachePath(_cacheDir, type, _language, id),
-            expectedHash,
+        return LoadWithCacheAsync<Dictionary<string, string>>(
+            TranslationPaths.BuildRelativePath(type, _language, id),
+            GetManifestHash(type, id),
             HashFile
         );
     }
 
-    public async Task<
+    public Task<
         Dictionary<string, Dictionary<string, Dictionary<string, string>>>
     > LoadStaticBundleAsync()
     {
         string type = TranslationPaths.Static;
-        string cacheKey = $"{_language}/{type}";
-        string expectedHash = GetManifestHash(type, null);
-
-        if (_manifest != null && expectedHash == null)
-            Logger.Info(
-                "Manifest has no static bundle entry; fetching bundle without hash verification."
-            );
-
-        return await LoadWithCacheAsync<
+        return LoadWithCacheAsync<
             Dictionary<string, Dictionary<string, Dictionary<string, string>>>
         >(
-            cacheKey,
-            TranslationPaths.BuildRemoteUrl(_cdn, type, _language),
-            TranslationPaths.BuildCachePath(_cacheDir, type, _language),
-            expectedHash,
-            HashBundleFile
+            TranslationPaths.BuildRelativePath(type, _language),
+            GetManifestHash(type, null),
+            HashBundleFile,
+            fetchWhenUnlisted: true
         );
     }
 
     // ══ Common cache-then-fetch flow ═══════════════════════════════════════
 
     private async Task<T> LoadWithCacheAsync<T>(
-        string cacheKey,
-        string remoteUrl,
-        string cachePath,
+        string relativePath,
         string expectedHash,
-        Func<string, string> computeFileHash
+        Func<string, string> computeFileHash,
+        bool fetchWhenUnlisted = false
     )
         where T : class
     {
-        var semaphore = _locks.GetOrAdd(cacheKey, _ => new SemaphoreSlim(1, 1));
+        var remoteUrl = TranslationPaths.BuildRemoteUrl(_cdn, relativePath);
+        var cachePath = TranslationPaths.BuildCachePath(_cacheDir, relativePath);
+        var semaphore = _locks.GetOrAdd(relativePath, _ => new SemaphoreSlim(1, 1));
         await semaphore.WaitAsync();
         try
         {
-            if (expectedHash != null && File.Exists(cachePath))
+            bool localExists = File.Exists(cachePath);
+            if (_preferLocalFiles && localExists)
             {
-                string localHash = computeFileHash(cachePath);
+                var localData = LoadJsonFile<T>(cachePath, "Failed to load preferred local file");
+                if (localData != null)
+                {
+                    Logger.Info($"Preferred local file: {relativePath}");
+                    return localData;
+                }
+            }
+
+            if (expectedHash != null && localExists)
+            {
+                string localHash = TryComputeFileHash(cachePath, computeFileHash);
                 if (localHash == expectedHash)
                 {
-                    Logger.Info($"Cache hit: {cacheKey}");
+                    Logger.Info($"Cache hit: {relativePath}");
                     return LoadJsonFile<T>(cachePath, "Failed to load cache");
                 }
                 Logger.Info(
-                    $"Cache hash mismatch for {cacheKey}, expected={expectedHash}, local={localHash}"
+                    $"Cache hash mismatch for {relativePath}, expected={expectedHash}, local={localHash}"
                 );
-                Logger.Info($"[翻译更新] CDN 有新版本内容: {cacheKey}");
+                Logger.Info($"[翻译更新] CDN 有新版本内容: {relativePath}");
+            }
+
+            if (_manifest != null && expectedHash == null)
+            {
+                if (localExists)
+                {
+                    Logger.Info($"Using local file missing from manifest: {relativePath}");
+                    return LoadJsonFile<T>(cachePath, "Failed to load unlisted local file");
+                }
+
+                if (!fetchWhenUnlisted)
+                {
+                    Logger.Info($"Manifest has no entry for {relativePath}, skipped.");
+                    return null;
+                }
             }
 
             Logger.Info($"Fetching from remote: {remoteUrl}");
-            Logger.Info($"[下载翻译] 正在下载文件: {cacheKey}");
+            Logger.Info($"[下载翻译] 正在下载文件: {relativePath}");
             var data = await GetAsync<T>(remoteUrl);
             if (data != null)
             {
-                SaveJsonFile(cachePath, data);
+                TrySaveJsonFile(cachePath, data);
                 return data;
             }
 
-            Logger.Warn($"Remote fetch failed for {cacheKey}, trying local fallback.");
+            Logger.Warn($"Remote fetch failed for {relativePath}, trying local fallback.");
             if (File.Exists(cachePath))
             {
                 data = LoadJsonFile<T>(cachePath, "Failed to load cache");
-                Logger.Info($"Loaded stale cache for {cacheKey}");
+                Logger.Info($"Loaded stale cache for {relativePath}");
             }
             return data;
         }
         finally
         {
             semaphore.Release();
-            CleanupLocksIfNeeded();
         }
-    }
-
-    // ══ Concurrency ════════════════════════════════════════════════════════
-
-    private void CleanupLocksIfNeeded()
-    {
-        if (++_lockCleanupCounter % LockCleanupInterval != 0)
-            return;
-
-        foreach (var kvp in _locks)
-            if (kvp.Value.CurrentCount > 0 && _locks.TryRemove(kvp.Key, out var sem))
-                sem.Dispose();
     }
 
     // ══ Manifest hash ══════════════════════════════════════════════════════
@@ -285,13 +284,35 @@ public class TranslationCache
         }
     }
 
-    private static void SaveJsonFile<T>(string path, T data)
-        where T : class
+    private static string TryComputeFileHash(string path, Func<string, string> computeFileHash)
     {
-        var dir = Path.GetDirectoryName(path);
-        if (!string.IsNullOrEmpty(dir))
-            Directory.CreateDirectory(dir);
-        File.WriteAllText(path, JsonSerializer.Serialize(data, JsonOptions), Utf8);
+        try
+        {
+            return computeFileHash(path);
+        }
+        catch (Exception e)
+        {
+            Logger.Warn($"Failed to hash local translation {path}: {e.Message}");
+            return null;
+        }
+    }
+
+    private static void TrySaveJsonFile<T>(string path, T data)
+        where T : class => TryWriteTextFile(path, JsonSerializer.Serialize(data, JsonOptions));
+
+    private static void TryWriteTextFile(string path, string content)
+    {
+        try
+        {
+            var dir = Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(dir))
+                Directory.CreateDirectory(dir);
+            File.WriteAllText(path, content, Utf8);
+        }
+        catch (Exception e)
+        {
+            Logger.Error($"Failed to write translation cache {path}: {e.Message}");
+        }
     }
 
     // ══ Normalized hashing (Python-compatible) ═════════════════════════════

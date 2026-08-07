@@ -75,20 +75,23 @@ public class Plugin : BasePlugin
             $"{MyPluginInfo.PLUGIN_GUID}/{MyPluginInfo.PLUGIN_VERSION}"
         );
 
+        string cacheDir = ResolvePluginPath(AbyssMod.Config.TranslationCacheDirectory.Value);
         var cache = new TranslationCache(
             AbyssMod.Config.TranslationCDN.Value,
-            Path.Combine(Paths.PluginPath, MyPluginInfo.PLUGIN_GUID, "cache"),
+            cacheDir,
             AbyssMod.Config.TranslationLanguage.Value,
+            AbyssMod.Config.TranslationPreferLocalFiles.Value,
             httpClient
         );
 
-        string fontPath = AbyssMod.Config.FontBundlePath.Value;
-        string resolvedPath = Path.IsPathRooted(fontPath)
-            ? fontPath
-            : Path.Combine(Paths.PluginPath, fontPath);
-
-        Trans = new TranslationManager(cache, new FontHelper(resolvedPath));
+        Trans = new TranslationManager(
+            cache,
+            new FontHelper(ResolvePluginPath(AbyssMod.Config.FontBundlePath.Value))
+        );
     }
+
+    private static string ResolvePluginPath(string path) =>
+        Path.IsPathRooted(path) ? path : Path.Combine(Paths.PluginPath, path);
 
     public override bool Unload()
     {

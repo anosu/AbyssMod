@@ -78,21 +78,28 @@
 
 ### `[General]`
 
-| 配置项              | 默认值  | 说明               |
-| ------------------- | ------- | ------------------ |
-| `DynamicMosaic`     | `false` | 是否启用动态马赛克 |
-| `SoundCaution`      | `false` | 是否弹出音量提醒   |
-| `VoiceInterruption` | `false` | 是否启用语音中断   |
-| `TitleMovie`        | `true`  | 是否播放标题动画   |
+| 配置项              | 默认值  | 说明                                         |
+| ------------------- | ------- | -------------------------------------------- |
+| `DynamicMosaic`     | `false` | 是否启用动态马赛克                           |
+| `SoundCaution`      | `false` | 是否弹出音量提醒                             |
+| `VoiceInterruption` | `false` | 是否启用语音中断                             |
+| `TitleMovie`        | `true`  | 是否播放标题动画                             |
 | `NovelLive2DScale`  | `1.0`   | 剧情 Live2D 缩放倍率，范围 `0.1` 至 `10.0`） |
 
 ### `[Translation]`
 
-| 配置项     | 可选项                                       | 默认值                                                                                      | 说明                                                                    |
-| ---------- | -------------------------------------------- | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| `Enabled`  | `true`（开启），`false`（关闭）              | `true`                                                                                      | 是否开启游戏内剧情翻译                                                  |
-| `CDN`      | 任意有效的 CDN URL 地址                      | `https://raw.githubusercontent.com/anosu/dotabyss-translation/refs/heads/main/translations` | 翻译数据 CDN 地址                                                       |
-| `Language` | `zh_Hans`（简体中文）                        | `zh_Hans`                                                                                   | 翻译语言，支持 `zh_Hans` 简体中文 |
+| 配置项     | 可选项                          | 默认值                                                                                      | 说明                              |
+| ---------- | ------------------------------- | ------------------------------------------------------------------------------------------- | --------------------------------- |
+| `Enabled`  | `true`（开启），`false`（关闭） | `true`                                                                                      | 是否开启游戏内剧情翻译            |
+| `CDN`      | 任意有效的 CDN URL 地址         | `https://raw.githubusercontent.com/anosu/dotabyss-translation/refs/heads/main/translations` | 翻译数据 CDN 地址                 |
+| `Language` | `zh_Hans`（简体中文）           | `zh_Hans`                                                                                   | 翻译语言，支持 `zh_Hans` 简体中文 |
+
+### `[Translation.Cache]`
+
+| 配置项             | 默认值           | 说明                                                                |
+| ------------------ | ---------------- | ------------------------------------------------------------------- |
+| `Directory`        | `AbyssMod/cache` | 缓存目录；相对路径以 `BepInEx/plugins` 为基准，也可填写绝对路径     |
+| `PreferLocalFiles` | `false`          | 本地文件存在时优先使用，不校验远程哈希；manifest 始终先尝试远程加载 |
 
 ### `[Translation.Font]`
 
@@ -118,6 +125,8 @@
 
 [dotabyss-translation](https://github.com/anosu/dotabyss-translation)
 
+缓存目录内部结构与该仓库的 `translations` 目录完全一致。可以直接将其内容放入缓存目录，或把 `Translation.Cache/Directory` 指向下载后的 `translations` 目录。
+
 ---
 
 ## ❓ 常见问题
@@ -134,7 +143,6 @@
 <summary><b>如何隐藏控制台窗口</b></summary>
 编辑 <code>BepInEx\config\BepInEx.cfg</code>，找到 <code>[Logging.Console]</code>，将 <code>Enabled</code> 设为 <code>false</code>
 </details>
-
 
 ### 社群
 

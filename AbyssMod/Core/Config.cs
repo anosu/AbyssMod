@@ -24,6 +24,8 @@ public static class Config
     public static ConfigEntry<bool> Translation;
     public static ConfigEntry<string> TranslationCDN;
     public static ConfigEntry<string> TranslationLanguage;
+    public static ConfigEntry<string> TranslationCacheDirectory;
+    public static ConfigEntry<bool> TranslationPreferLocalFiles;
     public static ConfigEntry<string> TranslationCryptoTag;
     public static ConfigEntry<string> TranslationCryptoKey;
     public static ConfigEntry<string> FontBundlePath;
@@ -108,6 +110,18 @@ public static class Config
             "Language",
             "zh_Hans",
             "翻译语言，取值范围：[zh_Hans]"
+        );
+        TranslationCacheDirectory = Plugin.ConfigFile.Bind(
+            "Translation.Cache",
+            "Directory",
+            $"{MyPluginInfo.PLUGIN_GUID}/translations",
+            "翻译缓存目录，默认相对于插件目录，也可使用绝对路径"
+        );
+        TranslationPreferLocalFiles = Plugin.ConfigFile.Bind(
+            "Translation.Cache",
+            "PreferLocalFiles",
+            false,
+            "本地翻译文件存在时是否忽略清单哈希并优先使用本地文件（manifest 除外）"
         );
         TranslationCryptoTag = Plugin.ConfigFile.Bind(
             "Translation.Crypto",
