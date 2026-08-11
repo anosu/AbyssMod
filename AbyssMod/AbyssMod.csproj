@@ -59,5 +59,9 @@
     <EmbeddedResource Include="Config\master.json">
       <LogicalName>AbyssMod.config.master.json</LogicalName>
     </EmbeddedResource>
+    <Content Include="Config\image-replacements.example.json">
+      <Link>replacements\manifest.example.json</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 </Project>

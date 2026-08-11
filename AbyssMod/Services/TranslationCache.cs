@@ -137,6 +137,27 @@ public class TranslationCache
         );
     }
 
+    public async Task<Dictionary<string, Dictionary<string, string>>> LoadUiTextsAsync()
+    {
+        string type = TranslationPaths.UiTexts;
+        string cacheKey = $"{_language}/{type}";
+        string expectedHash = GetManifestHash(type, null);
+
+        if (_manifest != null && expectedHash == null)
+        {
+            Logger.Info($"Manifest has no entry for {cacheKey}, skipped.");
+            return new Dictionary<string, Dictionary<string, string>>();
+        }
+
+        return await LoadWithCacheAsync<Dictionary<string, Dictionary<string, string>>>(
+            cacheKey,
+            TranslationPaths.BuildRemoteUrl(_cdn, type, _language),
+            TranslationPaths.BuildCachePath(_cacheDir, type, _language),
+            expectedHash,
+            HashUiTextFile
+        );
+    }
+
     public async Task<
         Dictionary<string, Dictionary<string, Dictionary<string, string>>>
     > LoadStaticBundleAsync()
@@ -301,6 +322,23 @@ public class TranslationCache
             JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(path, Utf8))
         );
 
+    private static string HashUiTextFile(string path)
+    {
+        try
+        {
+            return GetUiTextHash(
+                JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, string>>>(
+                    File.ReadAllText(path, Utf8)
+                )
+            );
+        }
+        catch (Exception e)
+        {
+            Logger.Warn($"UI text cache is incompatible, refreshing: {e.Message}");
+            return null;
+        }
+    }
+
     private static string HashBundleFile(string path)
     {
         try
@@ -326,6 +364,23 @@ public class TranslationCache
             dict.Keys.OrderBy(k => k, StringComparer.Ordinal)
                 .Select(k => ((string, string))(k, dict[k]))
         );
+    }
+
+    private static string GetUiTextHash(Dictionary<string, Dictionary<string, string>> table)
+    {
+        if (table == null)
+            return null;
+
+        var entries = new List<(string key, string value)>();
+        foreach (var path in table.Keys.OrderBy(k => k, StringComparer.Ordinal))
+        {
+            var translations = table[path];
+            if (translations == null)
+                continue;
+            foreach (var sourceText in translations.Keys.OrderBy(k => k, StringComparer.Ordinal))
+                entries.Add(($"{path}\x01{sourceText}", translations[sourceText]));
+        }
+        return ComputeMd5Hex(entries);
     }
 
     private static string GetBundleHash(

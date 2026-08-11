@@ -1,10 +1,9 @@
 {
   "_comment": "MasterData 静态翻译映射配置。tables 的键直接对应 static/zh_Hans.json 顶层表名，字段名直接对应 MasterData 字段。",
-  "_fields": "字段值为 true 表示直接翻译；对象可附加字段级配置，例如 {\"seal\": true}。",
+  "_fields": "字段值为 true 或对象表示参与翻译；表可通过 _class_aliases 登记额外的 IL2CPP 行类型。",
   "_flat_types": "非 MasterData 的扁平静态资源，仍按 translations/<type>/zh_Hans.json 加载。",
   "flat_types": [
-    "names",
-    "ui_texts"
+    "names"
   ],
   "tables": {
     "m_ability_details": {
@@ -257,6 +256,9 @@
       "desciption": true
     },
     "m_description_text_colors": {
+      "_class_aliases": [
+        "MDescriptionTextColor"
+      ],
       "word": true
     },
     "m_degrees": {

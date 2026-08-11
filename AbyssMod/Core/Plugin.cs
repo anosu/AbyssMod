@@ -26,6 +26,7 @@ public class Plugin : BasePlugin
     public static ConfigFile ConfigFile;
     public static MonoBehaviour Instance;
     public static TranslationManager Trans;
+    public static ImageReplacementManager Images;
 
     public override void Load()
     {
@@ -50,6 +51,7 @@ public class Plugin : BasePlugin
         Instance = AddComponent<Hotkey>();
 
         Initialize();
+        InitializeImageReplacements();
         PatchManager.Initialize();
         MasterMapping.Load();
         Trans.Initialize();
@@ -90,9 +92,22 @@ public class Plugin : BasePlugin
         Trans = new TranslationManager(cache, new FontHelper(resolvedPath));
     }
 
+    private static void InitializeImageReplacements()
+    {
+        string replacementRoot = Path.Combine(
+            Paths.PluginPath,
+            MyPluginInfo.PLUGIN_GUID,
+            "replacements"
+        );
+        Images = new ImageReplacementManager(replacementRoot);
+        Images.Initialize();
+    }
+
     public override bool Unload()
     {
         EnhancePatch.FlushNovelLive2DScale();
+        Images?.Dispose();
+        Images = null;
         Toast.Clear();
         return base.Unload();
     }

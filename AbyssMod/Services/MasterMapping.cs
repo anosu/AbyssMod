@@ -82,12 +82,15 @@ public static class MasterMapping
             var contentTypeSet = new HashSet<string>(StringComparer.Ordinal);
             foreach (var tableProp in tablesEl.EnumerateObject())
             {
-                var table = BuildTable(tableProp.Name, tableProp.Value);
-                if (table.Fields.Count == 0)
-                    continue;
+                foreach (string className in ReadClassNames(tableProp.Name, tableProp.Value))
+                {
+                    var table = BuildTable(tableProp.Name, tableProp.Value, className);
+                    if (table.Fields.Count == 0)
+                        continue;
 
-                result[table.ClassName] = table;
-                AddContentType(contentTypes, contentTypeSet, table.TranslationKey);
+                    result[table.ClassName] = table;
+                    AddContentType(contentTypes, contentTypeSet, table.TranslationKey);
+                }
             }
 
             foreach (var type in ReadFlatTypes(doc.RootElement))
@@ -107,9 +110,12 @@ public static class MasterMapping
         }
     }
 
-    private static TableMapping BuildTable(string tableName, JsonElement tableEl)
+    private static TableMapping BuildTable(
+        string tableName,
+        JsonElement tableEl,
+        string className
+    )
     {
-        var className = ToClassName(tableName);
         var translationKey = ReadTranslationKey(tableName, tableEl);
         var table = new TableMapping
         {
@@ -158,6 +164,30 @@ public static class MasterMapping
             );
         }
         return table;
+    }
+
+    private static IEnumerable<string> ReadClassNames(string tableName, JsonElement tableEl)
+    {
+        string defaultClassName = ToClassName(tableName);
+        yield return defaultClassName;
+
+        if (
+            tableEl.ValueKind != JsonValueKind.Object
+            || !tableEl.TryGetProperty("_class_aliases", out var aliasesEl)
+            || aliasesEl.ValueKind != JsonValueKind.Array
+        )
+            yield break;
+
+        var seen = new HashSet<string>(StringComparer.Ordinal) { defaultClassName };
+        foreach (var aliasEl in aliasesEl.EnumerateArray())
+        {
+            if (aliasEl.ValueKind != JsonValueKind.String)
+                continue;
+
+            string alias = aliasEl.GetString();
+            if (!string.IsNullOrEmpty(alias) && seen.Add(alias))
+                yield return alias;
+        }
     }
 
     private static string ReadTranslationKey(string tableName, JsonElement tableEl)

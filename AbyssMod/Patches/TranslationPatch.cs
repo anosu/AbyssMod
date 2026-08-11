@@ -38,9 +38,6 @@ public static class TranslationPatch
     private static bool _refreshingCurrentMessage;
     private static bool _uiTextLoadRequested;
     private static bool _uiTextErrorLogged;
-    private static TranslationTable _cachedUiTextTable;
-    private static int _cachedUiTextCount;
-    private static HashSet<string> _cachedTranslatedUiTexts;
 
     private static string NovelId => _novelController?._common?.ScriptId ?? string.Empty;
 
@@ -50,26 +47,19 @@ public static class TranslationPatch
 
     private static string TranslateTmpText(TMP_Text textComponent, string sourceText)
     {
-        if (!CanTranslate() || string.IsNullOrEmpty(sourceText))
+        if (!CanTranslate() || textComponent == null || string.IsNullOrEmpty(sourceText))
             return sourceText;
 
-        var uiTextTable = GetUiTextTable();
+        var uiTextTable = GetUiTextTable(sourceText);
         if (uiTextTable == null || uiTextTable.Count == 0)
             return sourceText;
 
-        if (IsKnownUiTranslation(uiTextTable, sourceText))
-            return sourceText;
-
-        if (
-            uiTextTable.TryGetValue(sourceText, out string translatedText)
-            && !string.IsNullOrEmpty(translatedText)
-        )
-            return translatedText;
-
-        string transformPath = GetTransformPath(textComponent?.transform);
+        string transformPath = GetTransformPath(textComponent.transform);
         if (
             !string.IsNullOrEmpty(transformPath)
-            && uiTextTable.TryGetValue(transformPath, out translatedText)
+            && uiTextTable.TryGetValue(transformPath, out var translations)
+            && translations != null
+            && translations.TryGetValue(sourceText, out string translatedText)
             && !string.IsNullOrEmpty(translatedText)
         )
             return translatedText;
@@ -77,26 +67,7 @@ public static class TranslationPatch
         return sourceText;
     }
 
-    private static bool IsKnownUiTranslation(TranslationTable uiTextTable, string sourceText)
-    {
-        if (
-            _cachedTranslatedUiTexts == null
-            || !ReferenceEquals(_cachedUiTextTable, uiTextTable)
-            || _cachedUiTextCount != uiTextTable.Count
-        )
-        {
-            _cachedUiTextTable = uiTextTable;
-            _cachedUiTextCount = uiTextTable.Count;
-            _cachedTranslatedUiTexts = new HashSet<string>(
-                uiTextTable.Values,
-                StringComparer.Ordinal
-            );
-        }
-
-        return _cachedTranslatedUiTexts.Contains(sourceText);
-    }
-
-    private static TranslationTable GetUiTextTable()
+    private static Dictionary<string, Dictionary<string, string>> GetUiTextTable(string sourceText)
     {
         if (!_uiTextLoadRequested)
         {
@@ -110,7 +81,7 @@ public static class TranslationPatch
                 Logger.Warn($"UI text translation load request skipped: {e.Message}");
             }
         }
-        return Plugin.Trans.GetTable(TranslationPaths.UiTexts);
+        return Plugin.Trans.GetUiTextTable(sourceText);
     }
 
     private static string GetTransformPath(Transform transform)

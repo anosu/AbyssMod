@@ -82,11 +82,7 @@ public static class MasterDataPatch
             )
                 continue;
 
-            MasterMapping.WriteField(
-                rowPtr,
-                entry,
-                entry.Seal ? RestoreSealNames(translated) : translated
-            );
+            MasterMapping.WriteField(rowPtr, entry, translated);
             count++;
         }
         return count;
@@ -105,18 +101,5 @@ public static class MasterDataPatch
         dict = Plugin.Trans.GetFieldTable(dictName, fieldName);
         dictCache[key] = dict;
         return dict;
-    }
-
-    /// <summary>纹章名繁简修正：译文中混入的简体「纹章：冲击/热情」还原为游戏内的繁体写法。</summary>
-    private static string RestoreSealNames(string text)
-    {
-        if (string.IsNullOrEmpty(text))
-            return text;
-
-        if (!text.Contains("纹章：", StringComparison.Ordinal))
-            return text;
-
-        return text.Replace("纹章：冲击", "紋章：衝撃", StringComparison.Ordinal)
-            .Replace("纹章：热情", "紋章：情熱", StringComparison.Ordinal);
     }
 }

@@ -28,6 +28,9 @@ public class TranslationManager
     /// <summary>扁平翻译表 { type: { original: translated } }，供 UI / 剧情辅助查询。</summary>
     private readonly Dictionary<string, Dictionary<string, string>> _flatTables = new();
 
+    /// <summary>UI 翻译表及其原文候选索引，加载完成后整体替换。</summary>
+    private UiTextIndex _uiTexts;
+
     /// <summary>剧情正文翻译表（按需懒加载，独立存放）。</summary>
     public ConcurrentDictionary<string, Dictionary<string, string>> Novels { get; } = new();
 
@@ -110,7 +113,19 @@ public class TranslationManager
             Toast.Warn("加载失败", "MasterData 静态翻译合并包加载失败");
         }
 
-        await LoadFlatStaticTablesAsync();
+        await Task.WhenAll(LoadFlatStaticTablesAsync(), LoadUiTextsAsync());
+    }
+
+    private async Task LoadUiTextsAsync()
+    {
+        var result = await _cache.LoadUiTextsAsync();
+        if (result != null)
+        {
+            _uiTexts = new UiTextIndex(result);
+            Logger.Info($"Contextual UI text translation loaded. Total: {CountEntries(result)}");
+        }
+        else
+            Logger.Warn("Contextual UI text translation load failed.");
     }
 
     private async Task LoadFlatStaticTablesAsync()
@@ -141,6 +156,12 @@ public class TranslationManager
 
     public Dictionary<string, string> GetTable(string type) =>
         _flatTables.TryGetValue(type, out var table) ? table : null;
+
+    public Dictionary<string, Dictionary<string, string>> GetUiTextTable(string sourceText)
+    {
+        var index = _uiTexts;
+        return index != null && index.SourceTexts.Contains(sourceText) ? index.Table : null;
+    }
 
     public Dictionary<string, string> GetFieldTable(string type, string field) =>
         _tables.TryGetValue(type, out var fields) && fields.TryGetValue(field, out var table)
@@ -197,6 +218,25 @@ public class TranslationManager
             if (t != null)
                 count += t.Count;
         return count;
+    }
+
+    private sealed class UiTextIndex
+    {
+        public UiTextIndex(Dictionary<string, Dictionary<string, string>> table)
+        {
+            Table = table;
+            SourceTexts = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var translations in table.Values)
+            {
+                if (translations == null)
+                    continue;
+                foreach (string sourceText in translations.Keys)
+                    SourceTexts.Add(sourceText);
+            }
+        }
+
+        public Dictionary<string, Dictionary<string, string>> Table { get; }
+        public HashSet<string> SourceTexts { get; }
     }
 
     private static Dictionary<string, string> FlattenFields(

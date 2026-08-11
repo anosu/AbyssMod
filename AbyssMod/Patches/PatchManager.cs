@@ -18,6 +18,8 @@ public static class PatchManager
     public static void Initialize()
     {
         Harmony.CreateAndPatchAll(typeof(EnhancePatch));
+        if (Plugin.Images?.Enabled == true)
+            Harmony.CreateAndPatchAll(typeof(ImageReplacementPatch));
         Harmony.CreateAndPatchAll(typeof(MasterDataPatch));
         Harmony.CreateAndPatchAll(typeof(TranslationPatch));
 #if DEBUG
