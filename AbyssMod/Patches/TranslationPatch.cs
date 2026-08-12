@@ -50,25 +50,23 @@ public static class TranslationPatch
         if (!CanTranslate() || textComponent == null || string.IsNullOrEmpty(sourceText))
             return sourceText;
 
-        var uiTextTable = GetUiTextTable(sourceText);
-        if (uiTextTable == null || uiTextTable.Count == 0)
-            return sourceText;
-
         string transformPath = GetTransformPath(textComponent.transform);
         if (
             !string.IsNullOrEmpty(transformPath)
-            && uiTextTable.TryGetValue(transformPath, out var translations)
-            && translations != null
-            && translations.TryGetValue(sourceText, out string translatedText)
-            && !string.IsNullOrEmpty(translatedText)
+            && TryTranslateUiText(transformPath, sourceText, out string translatedText)
         )
             return translatedText;
 
         return sourceText;
     }
 
-    private static Dictionary<string, Dictionary<string, string>> GetUiTextTable(string sourceText)
+    private static bool TryTranslateUiText(
+        string transformPath,
+        string sourceText,
+        out string translatedText
+    )
     {
+        translatedText = null;
         if (!_uiTextLoadRequested)
         {
             _uiTextLoadRequested = true;
@@ -81,7 +79,7 @@ public static class TranslationPatch
                 Logger.Warn($"UI text translation load request skipped: {e.Message}");
             }
         }
-        return Plugin.Trans.GetUiTextTable(sourceText);
+        return Plugin.Trans.TryTranslateUiText(transformPath, sourceText, out translatedText);
     }
 
     private static string GetTransformPath(Transform transform)
