@@ -60,6 +60,7 @@ public class Plugin : BasePlugin
             MyPluginInfo.PLUGIN_NAME,
             $"Mod 加载成功，版本: {MyPluginInfo.PLUGIN_VERSION}"
         );
+        _ = UpdateChecker.CheckAsync(httpClient, MyPluginInfo.PLUGIN_VERSION);
     }
 
     private static HttpClient Initialize()
