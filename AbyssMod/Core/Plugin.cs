@@ -50,8 +50,8 @@ public class Plugin : BasePlugin
         AbyssMod.Config.Initialize();
         Instance = AddComponent<Hotkey>();
 
-        Initialize();
-        InitializeImageReplacements();
+        HttpClient httpClient = Initialize();
+        InitializeImageReplacements(httpClient);
         PatchManager.Initialize();
         MasterMapping.Load();
         Trans.Initialize();
@@ -62,7 +62,7 @@ public class Plugin : BasePlugin
         );
     }
 
-    private static void Initialize()
+    private static HttpClient Initialize()
     {
         var handler = new SocketsHttpHandler
         {
@@ -90,15 +90,24 @@ public class Plugin : BasePlugin
             : Path.Combine(Paths.PluginPath, fontPath);
 
         Trans = new TranslationManager(cache, new FontHelper(resolvedPath));
+        return httpClient;
     }
 
-    private static void InitializeImageReplacements()
+    private static void InitializeImageReplacements(HttpClient httpClient)
     {
         string replacementRoot = Path.Combine(
             Paths.PluginPath,
             MyPluginInfo.PLUGIN_GUID,
+            "cache",
             "replacements"
         );
+        var cache = new ImageReplacementCache(
+            AbyssMod.Config.TranslationCDN.Value,
+            AbyssMod.Config.TranslationLanguage.Value,
+            replacementRoot,
+            httpClient
+        );
+        cache.SyncAsync().GetAwaiter().GetResult();
         Images = new ImageReplacementManager(replacementRoot);
         Images.Initialize();
     }

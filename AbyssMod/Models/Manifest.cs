@@ -19,6 +19,9 @@ public class Manifest
     [JsonPropertyName("novels")]
     public Dictionary<string, string> Novels { get; set; }
 
+    [JsonPropertyName("replacements")]
+    public Dictionary<string, string> Replacements { get; set; }
+
     /// <summary>获取指定类型的清单哈希，不存在时返回 null。</summary>
     public string GetFileHash(string type)
     {
