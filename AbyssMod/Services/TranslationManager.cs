@@ -1,13 +1,15 @@
+using BepInEx.Unity.IL2CPP.Utils.Collections;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using BepInEx.Unity.IL2CPP.Utils.Collections;
 using TMPro;
-using Utility.Fonts;
-using Utility.Toast;
+using Utility.Assets;
+using Utility.Notifications;
 
 namespace AbyssMod.Services;
+
+using UiTranslationTable = Dictionary<string, Dictionary<string, string>>;
 
 /// <summary>
 /// 翻译协调层：持有所有运行时翻译数据，提供统一查询入口。
@@ -15,25 +17,22 @@ namespace AbyssMod.Services;
 public class TranslationManager
 {
     private readonly TranslationCache _cache;
-    private readonly FontHelper _font;
+    private readonly AssetBundleLoader<TMP_FontAsset> _font;
     private readonly object _loadLock = new();
     private Task _loadTask;
+    private volatile bool _staticTranslationsLoaded;
+    private volatile MasterDataTranslator _masterDataTranslator;
 
     private readonly ConcurrentDictionary<string, Task> _loadingNovels = new();
 
-    /// <summary>MasterData 字段级翻译表 { type: { field: { original: translated } } }。</summary>
-    private readonly Dictionary<string, Dictionary<string, Dictionary<string, string>>> _tables =
-        new();
+    private volatile Dictionary<string, string> _names;
+    private volatile UiTranslationTable _uiTexts;
 
-    /// <summary>扁平翻译表 { type: { original: translated } }，供 UI / 剧情辅助查询。</summary>
-    private readonly Dictionary<string, Dictionary<string, string>> _flatTables = new();
+    private readonly ConcurrentDictionary<string, Dictionary<string, string>> _novels = new();
 
-    /// <summary>剧情正文翻译表（按需懒加载，独立存放）。</summary>
-    public ConcurrentDictionary<string, Dictionary<string, string>> Novels { get; } = new();
+    public AssetBundleLoader<TMP_FontAsset> Font => _font;
 
-    public FontHelper Font => _font;
-
-    public TranslationManager(TranslationCache cache, FontHelper font)
+    public TranslationManager(TranslationCache cache, AssetBundleLoader<TMP_FontAsset> font)
     {
         _cache = cache;
         _font = font;
@@ -43,7 +42,7 @@ public class TranslationManager
     {
         Plugin.Instance.StartCoroutine(
             _font
-                .LoadAsync(() =>
+                .Load(() =>
                 {
                     Logger.Info($"Font loaded: {_font.Asset.name}");
                     TMP_Settings.fallbackFontAssets.Add(_font.Asset);
@@ -57,101 +56,140 @@ public class TranslationManager
 
     public Task EnsureStaticTranslationsLoadedAsync()
     {
+        if (!Config.TranslationEnabledAtStartup && !Config.Translation.Value)
+            return Task.CompletedTask;
+
         lock (_loadLock)
         {
-            return _loadTask ??= LoadTranslationAsync();
-        }
-    }
+            if (
+                _loadTask == null
+                || _loadTask.IsCanceled
+                || _loadTask.IsFaulted
+                || (_loadTask.IsCompleted && !_staticTranslationsLoaded)
+            )
+                _loadTask = LoadTranslationAsync();
 
-    /// <summary>
-    /// 同步等待静态翻译就绪。
-    /// 仅在 MasterData 热路径上使用 — BepInEx IL2CPP 无 SynchronizationContext，
-    /// 故 .GetAwaiter().GetResult() 不会死锁，但会阻塞调用线程直至 I/O 完成。
-    /// </summary>
-    public void EnsureStaticTranslationsLoaded()
-    {
-        EnsureStaticTranslationsLoadedAsync().GetAwaiter().GetResult();
+            return _loadTask;
+        }
     }
 
     private async Task LoadTranslationAsync()
     {
-        if (!Config.Translation.Value)
-            return;
-
         await _cache.FetchManifestAsync();
 
-        var bundle = await _cache.LoadStaticBundleAsync();
-        if (bundle != null)
+        var bundleTask = _masterDataTranslator == null ? _cache.LoadStaticBundleAsync() : null;
+        var namesTask = _names == null ? _cache.LoadAsync(TranslationPaths.Names) : null;
+        var uiTextsTask = _uiTexts == null ? _cache.LoadUiTextsAsync() : null;
+
+        if (bundleTask != null)
         {
-            int total = 0,
-                loaded = 0,
-                missing = 0;
-            foreach (var type in MasterMapping.ContentTypes)
+            var bundle = await bundleTask;
+            if (bundle != null)
             {
-                if (!IsMasterDataStaticType(type))
-                    continue;
-                if (bundle.TryGetValue(type, out var table) && table != null)
+                var masterTables =
+                    new Dictionary<string, Dictionary<string, Dictionary<string, string>>>();
+                foreach (var (type, table) in bundle)
                 {
-                    _tables[type] = table;
-                    total += CountEntries(table);
-                    loaded++;
-                    _flatTables[type] = FlattenFields(table);
+                    if (!IsMasterDataStaticType(type) || table == null)
+                        continue;
+
+                    masterTables[type] = table;
                 }
-                else
-                    missing++;
-            }
-            Logger.Info($"Static translation bundle loaded. Tables: {loaded}, Total: {total}");
-            if (missing > 0)
-                Logger.Warn($"Static translation bundle missing {missing} configured tables.");
-        }
-        else
-        {
-            Logger.Warn("MasterData static translation bundle load failed.");
-            Toast.Warn("加载失败", "MasterData 静态翻译合并包加载失败");
-        }
-
-        await LoadFlatStaticTablesAsync();
-    }
-
-    private async Task LoadFlatStaticTablesAsync()
-    {
-        var tasks = new Dictionary<string, Task<Dictionary<string, string>>>();
-        foreach (var type in MasterMapping.ContentTypes)
-            if (!IsMasterDataStaticType(type))
-                tasks[type] = _cache.LoadAsync(type);
-
-        if (tasks.Count == 0)
-            return;
-        await Task.WhenAll(tasks.Values);
-
-        foreach (var (type, task) in tasks)
-        {
-            var result = await task;
-            if (result != null)
-            {
-                _flatTables[type] = result;
-                Logger.Info($"Flat static translation loaded [{type}]. Total: {result.Count}");
+                _masterDataTranslator = MasterDataTranslator.Create(masterTables);
+                Logger.Info($"Static translation bundle loaded. Tables: {masterTables.Count}");
             }
             else
-                Logger.Warn($"Flat static translation load failed [{type}]");
+            {
+                Logger.Warn("MasterData static translation bundle load failed.");
+                Toast.Warning("加载失败", "MasterData 静态翻译合并包加载失败");
+            }
         }
+
+        if (namesTask != null)
+        {
+            var names = await namesTask;
+            if (names != null)
+            {
+                _names = names;
+                Logger.Info($"Static translation loaded [names]. Total: {names.Count}");
+            }
+            else
+                Logger.Warn("Static translation load failed [names]");
+        }
+
+        if (uiTextsTask != null)
+        {
+            _uiTexts = await uiTextsTask;
+            if (_uiTexts != null)
+                Logger.Info($"Static translation loaded [ui_texts]. Paths: {_uiTexts.Count}");
+            else
+                Logger.Warn("Static translation load failed [ui_texts]");
+        }
+
+        _staticTranslationsLoaded =
+            _masterDataTranslator != null && _names != null && _uiTexts != null;
     }
 
     // ── 查询 API ────────────────────────────
 
-    public Dictionary<string, string> GetTable(string type) =>
-        _flatTables.TryGetValue(type, out var table) ? table : null;
+    internal bool HasUiTranslations => _uiTexts != null;
 
-    public Dictionary<string, string> GetFieldTable(string type, string field) =>
-        _tables.TryGetValue(type, out var fields) && fields.TryGetValue(field, out var table)
-            ? table
-            : GetTable(type);
+    public string TranslateName(string sourceText) =>
+        !string.IsNullOrEmpty(sourceText)
+        && _names != null
+        && _names.TryGetValue(sourceText, out var translated)
+        && !string.IsNullOrEmpty(translated)
+            ? translated
+            : sourceText;
+
+    public string TranslateUiText(string path, string sourceText)
+    {
+        if (
+            string.IsNullOrEmpty(path)
+            || string.IsNullOrEmpty(sourceText)
+            || _uiTexts == null
+            || !_uiTexts.TryGetValue(path, out var translations)
+        )
+            return sourceText;
+
+        return
+            translations.TryGetValue(sourceText, out var translated)
+            && !string.IsNullOrEmpty(translated)
+            ? translated
+            : sourceText;
+    }
+
+    internal bool MasterDataTranslationReady => _masterDataTranslator != null;
+
+    internal int MasterDataTranslationTableCount => _masterDataTranslator?.TableCount ?? 0;
+
+    internal bool HasMasterDataTranslation(Il2CppSystem.Type cacheType) =>
+        _masterDataTranslator?.Contains(cacheType) == true;
+
+    internal bool TryTranslateMasterDataCache(
+        Il2CppSystem.Type cacheType,
+        Absf.Master.IMasterLoadResult result,
+        out int translatedEntries
+    )
+    {
+        var translator = _masterDataTranslator;
+        if (translator != null)
+            return translator.TryTranslate(cacheType, result, out translatedEntries);
+
+        translatedEntries = 0;
+        return false;
+    }
+
+    internal bool HasNovel(string novelId) => _novels.ContainsKey(novelId);
+
+    internal bool TryGetNovel(string novelId, out Dictionary<string, string> translations) =>
+        _novels.TryGetValue(novelId, out translations);
 
     // ── 剧情翻译按需加载 ────────────────────
 
     public async Task GetNovelTranslationAsync(string novelId)
     {
-        if (Novels.ContainsKey(novelId))
+        if (_novels.ContainsKey(novelId))
             return;
 
         var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -167,13 +205,13 @@ public class TranslationManager
             var translations = await _cache.LoadAsync(TranslationPaths.Novels, novelId);
             if (translations != null)
             {
-                Novels[novelId] = translations;
+                _novels[novelId] = translations;
                 Logger.Info($"Scenario translation loaded. Total: {translations.Count}");
             }
             else
             {
                 Logger.Warn($"Translations loaded failed: {novelId}");
-                Toast.Warn("加载失败", $"剧本ID: {novelId}");
+                Toast.Warning("加载失败", $"剧本ID: {novelId}");
             }
             tcs.SetResult();
         }
@@ -186,32 +224,6 @@ public class TranslationManager
         {
             _loadingNovels.TryRemove(novelId, out _);
         }
-    }
-
-    // ── 私有辅助 ────────────────────────────
-
-    private static int CountEntries(Dictionary<string, Dictionary<string, string>> fields)
-    {
-        int count = 0;
-        foreach (var t in fields.Values)
-            if (t != null)
-                count += t.Count;
-        return count;
-    }
-
-    private static Dictionary<string, string> FlattenFields(
-        Dictionary<string, Dictionary<string, string>> fields
-    )
-    {
-        var result = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var table in fields.Values)
-        {
-            if (table == null)
-                continue;
-            foreach (var (k, v) in table)
-                result[k] = v;
-        }
-        return result;
     }
 
     private static bool IsMasterDataStaticType(string type) =>

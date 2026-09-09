@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Text;
 using AbyssMod.Patches;
@@ -9,9 +10,10 @@ using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using BepInEx.Unity.IL2CPP;
+using TMPro;
 using UnityEngine;
-using Utility.Fonts;
-using Utility.Toast;
+using Utility.Assets;
+using Utility.Notifications;
 
 namespace AbyssMod;
 
@@ -26,6 +28,7 @@ public class Plugin : BasePlugin
     public static ConfigFile ConfigFile;
     public static MonoBehaviour Instance;
     public static TranslationManager Trans;
+    private static HttpClient _httpClient;
 
     public override void Load()
     {
@@ -45,14 +48,13 @@ public class Plugin : BasePlugin
         ConfigFile = base.Config;
         Log.LogInfo($"Plugin {MyPluginInfo.PLUGIN_GUID} is loaded!");
 
-        AddComponent<ToastUI>();
+        Toast.Initialize();
         AbyssMod.Config.Initialize();
         Instance = AddComponent<Hotkey>();
 
         Initialize();
-        PatchManager.Initialize();
-        MasterMapping.Load();
         Trans.Initialize();
+        PatchManager.Initialize();
 
         Toast.Success(
             MyPluginInfo.PLUGIN_NAME,
@@ -64,14 +66,18 @@ public class Plugin : BasePlugin
     {
         var handler = new SocketsHttpHandler
         {
+            AutomaticDecompression =
+                DecompressionMethods.GZip
+                | DecompressionMethods.Deflate
+                | DecompressionMethods.Brotli,
             PooledConnectionLifetime = TimeSpan.FromMinutes(PooledConnectionLifetimeMinutes),
             PooledConnectionIdleTimeout = TimeSpan.FromMinutes(PooledConnectionIdleTimeoutMinutes),
         };
-        var httpClient = new HttpClient(new CryptoHandler(handler))
+        _httpClient = new HttpClient(new CryptoHandler(handler))
         {
             Timeout = TimeSpan.FromSeconds(HttpTimeoutSeconds),
         };
-        httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(
+        _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(
             $"{MyPluginInfo.PLUGIN_GUID}/{MyPluginInfo.PLUGIN_VERSION}"
         );
 
@@ -81,12 +87,12 @@ public class Plugin : BasePlugin
             cacheDir,
             AbyssMod.Config.TranslationLanguage.Value,
             AbyssMod.Config.TranslationPreferLocalFiles.Value,
-            httpClient
+            _httpClient
         );
 
         Trans = new TranslationManager(
             cache,
-            new FontHelper(ResolvePluginPath(AbyssMod.Config.FontBundlePath.Value))
+            new AssetBundleLoader<TMP_FontAsset>(ResolvePluginPath(AbyssMod.Config.FontBundlePath.Value))
         );
     }
 
@@ -96,6 +102,8 @@ public class Plugin : BasePlugin
     public override bool Unload()
     {
         EnhancePatch.FlushNovelLive2DScale();
+        PatchManager.Shutdown();
+        _httpClient?.Dispose();
         Toast.Clear();
         return base.Unload();
     }

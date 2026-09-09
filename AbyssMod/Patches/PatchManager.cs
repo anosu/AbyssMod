@@ -1,5 +1,3 @@
-using System;
-using System.Reflection;
 using HarmonyLib;
 
 namespace AbyssMod.Patches;
@@ -9,19 +7,33 @@ namespace AbyssMod.Patches;
 /// </summary>
 public static class PatchManager
 {
-    /// <summary>当前加载的剧情 Novel ID。</summary>
-    public static string NovelId = string.Empty;
+    private static Harmony _harmony;
 
     /// <summary>
     /// 创建并注册所有 Harmony 补丁。
     /// </summary>
     public static void Initialize()
     {
-        Harmony.CreateAndPatchAll(typeof(EnhancePatch));
-        Harmony.CreateAndPatchAll(typeof(MasterDataPatch));
-        Harmony.CreateAndPatchAll(typeof(TranslationPatch));
+        if (_harmony != null)
+            return;
+
+        _harmony = new Harmony(MyPluginInfo.PLUGIN_GUID);
+        _harmony.PatchAll(typeof(EnhancePatch));
+        if (Config.TranslationEnabledAtStartup)
+        {
+            _harmony.PatchAll(typeof(MasterDataPatch));
+            _harmony.PatchAll(typeof(UiTranslationPatch));
+        }
+        _harmony.PatchAll(typeof(TranslationPatch));
 #if DEBUG
-        Harmony.CreateAndPatchAll(typeof(DebugPatch));
+        _harmony.PatchAll(typeof(DebugPatch));
 #endif
+    }
+
+    public static void Shutdown()
+    {
+        _harmony?.UnpatchSelf();
+        _harmony = null;
+        MasterDataPatch.Reset();
     }
 }

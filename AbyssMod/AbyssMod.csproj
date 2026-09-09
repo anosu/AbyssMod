@@ -10,7 +10,6 @@
     <AssemblyName>AbyssMod</AssemblyName>
     <Product>AbyssMod</Product>
     <Version>1.1.1</Version>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>latest</LangVersion>
     <RestoreAdditionalProjectSources>
       https://api.nuget.org/v3/index.json;
@@ -53,11 +52,5 @@
   <ItemGroup>
     <PackageReference Include="BepInEx.Unity.IL2CPP" Version="6.0.0-be.*" IncludeAssets="compile" />
     <PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Include="Config\master.json">
-      <LogicalName>AbyssMod.config.master.json</LogicalName>
-    </EmbeddedResource>
   </ItemGroup>
 </Project>

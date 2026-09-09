@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
@@ -13,6 +14,8 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace AbyssMod.Services;
+
+using UiTranslationTable = Dictionary<string, Dictionary<string, string>>;
 
 public class TranslationCache
 {
@@ -32,6 +35,7 @@ public class TranslationCache
     };
 
     private static readonly Encoding Utf8 = new UTF8Encoding(false);
+    private static readonly byte[] EntrySeparator = { 0 };
 
     public TranslationCache(
         string cdn,
@@ -50,8 +54,6 @@ public class TranslationCache
         Directory.CreateDirectory(_cacheDir);
     }
 
-    public Manifest Manifest => _manifest;
-
     // ══ Manifest ═══════════════════════════════════════════════════════════
 
     public async Task FetchManifestAsync()
@@ -63,7 +65,7 @@ public class TranslationCache
 
         try
         {
-            var response = await _client.GetAsync(url);
+            using var response = await _client.GetAsync(url);
             if (response.IsSuccessStatusCode)
             {
                 var json = await response.Content.ReadAsStringAsync();
@@ -127,7 +129,17 @@ public class TranslationCache
         return LoadWithCacheAsync<Dictionary<string, string>>(
             TranslationPaths.BuildRelativePath(type, _language, id),
             GetManifestHash(type, id),
-            HashFile
+            GetHash
+        );
+    }
+
+    public Task<UiTranslationTable> LoadUiTextsAsync()
+    {
+        string type = TranslationPaths.UiTexts;
+        return LoadWithCacheAsync<UiTranslationTable>(
+            TranslationPaths.BuildRelativePath(type, _language),
+            GetManifestHash(type, null),
+            GetUiTextHash
         );
     }
 
@@ -141,7 +153,7 @@ public class TranslationCache
         >(
             TranslationPaths.BuildRelativePath(type, _language),
             GetManifestHash(type, null),
-            HashBundleFile,
+            GetBundleHash,
             fetchWhenUnlisted: true
         );
     }
@@ -151,7 +163,7 @@ public class TranslationCache
     private async Task<T> LoadWithCacheAsync<T>(
         string relativePath,
         string expectedHash,
-        Func<string, string> computeFileHash,
+        Func<T, string> computeHash,
         bool fetchWhenUnlisted = false
     )
         where T : class
@@ -163,9 +175,10 @@ public class TranslationCache
         try
         {
             bool localExists = File.Exists(cachePath);
+            T localData = null;
             if (_preferLocalFiles && localExists)
             {
-                var localData = LoadJsonFile<T>(cachePath, "Failed to load preferred local file");
+                localData = LoadJsonFile<T>(cachePath, "Failed to load preferred local file");
                 if (localData != null)
                 {
                     Logger.Info($"Preferred local file: {relativePath}");
@@ -175,11 +188,12 @@ public class TranslationCache
 
             if (expectedHash != null && localExists)
             {
-                string localHash = TryComputeFileHash(cachePath, computeFileHash);
-                if (localHash == expectedHash)
+                localData ??= LoadJsonFile<T>(cachePath, "Failed to load cache");
+                string localHash = TryComputeHash(localData, computeHash);
+                if (HashesEqual(localHash, expectedHash))
                 {
                     Logger.Info($"Cache hit: {relativePath}");
-                    return LoadJsonFile<T>(cachePath, "Failed to load cache");
+                    return localData;
                 }
                 Logger.Info(
                     $"Cache hash mismatch for {relativePath}, expected={expectedHash}, local={localHash}"
@@ -192,7 +206,8 @@ public class TranslationCache
                 if (localExists)
                 {
                     Logger.Info($"Using local file missing from manifest: {relativePath}");
-                    return LoadJsonFile<T>(cachePath, "Failed to load unlisted local file");
+                    return localData
+                        ?? LoadJsonFile<T>(cachePath, "Failed to load unlisted local file");
                 }
 
                 if (!fetchWhenUnlisted)
@@ -207,14 +222,28 @@ public class TranslationCache
             var data = await GetAsync<T>(remoteUrl);
             if (data != null)
             {
-                TrySaveJsonFile(cachePath, data);
-                return data;
+                if (expectedHash == null)
+                {
+                    TrySaveJsonFile(cachePath, data);
+                    return data;
+                }
+
+                string remoteHash = TryComputeHash(data, computeHash);
+                if (HashesEqual(remoteHash, expectedHash))
+                {
+                    TrySaveJsonFile(cachePath, data);
+                    return data;
+                }
+
+                Logger.Warn(
+                    $"Remote hash mismatch for {relativePath}, expected={expectedHash}, actual={remoteHash}"
+                );
             }
 
             Logger.Warn($"Remote fetch failed for {relativePath}, trying local fallback.");
             if (File.Exists(cachePath))
             {
-                data = LoadJsonFile<T>(cachePath, "Failed to load cache");
+                data = localData ?? LoadJsonFile<T>(cachePath, "Failed to load cache");
                 Logger.Info($"Loaded stale cache for {relativePath}");
             }
             return data;
@@ -243,7 +272,7 @@ public class TranslationCache
     {
         try
         {
-            var response = await _client.GetAsync(url);
+            using var response = await _client.GetAsync(url);
             if (response.IsSuccessStatusCode)
                 return await response.Content.ReadFromJsonAsync<T>();
         }
@@ -284,60 +313,56 @@ public class TranslationCache
         }
     }
 
-    private static string TryComputeFileHash(string path, Func<string, string> computeFileHash)
+    private static string TryComputeHash<T>(T data, Func<T, string> computeHash)
+        where T : class
     {
+        if (data == null)
+            return null;
+
         try
         {
-            return computeFileHash(path);
+            return computeHash(data);
         }
         catch (Exception e)
         {
-            Logger.Warn($"Failed to hash local translation {path}: {e.Message}");
+            Logger.Warn($"Failed to hash translation data: {e.Message}");
             return null;
         }
     }
+
+    private static bool HashesEqual(string left, string right) =>
+        string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
 
     private static void TrySaveJsonFile<T>(string path, T data)
         where T : class => TryWriteTextFile(path, JsonSerializer.Serialize(data, JsonOptions));
 
     private static void TryWriteTextFile(string path, string content)
     {
+        string tempPath = path + ".tmp";
         try
         {
             var dir = Path.GetDirectoryName(path);
             if (!string.IsNullOrEmpty(dir))
                 Directory.CreateDirectory(dir);
-            File.WriteAllText(path, content, Utf8);
+            File.WriteAllText(tempPath, content, Utf8);
+            File.Move(tempPath, path, overwrite: true);
         }
         catch (Exception e)
         {
             Logger.Error($"Failed to write translation cache {path}: {e.Message}");
         }
+        finally
+        {
+            try
+            {
+                if (File.Exists(tempPath))
+                    File.Delete(tempPath);
+            }
+            catch { }
+        }
     }
 
     // ══ Normalized hashing (Python-compatible) ═════════════════════════════
-
-    private static string HashFile(string path) =>
-        GetHash(
-            JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(path, Utf8))
-        );
-
-    private static string HashBundleFile(string path)
-    {
-        try
-        {
-            return GetBundleHash(
-                JsonSerializer.Deserialize<
-                    Dictionary<string, Dictionary<string, Dictionary<string, string>>>
-                >(File.ReadAllText(path, Utf8))
-            );
-        }
-        catch (Exception e)
-        {
-            Logger.Warn($"Static bundle cache is incompatible, refreshing: {e.Message}");
-            return null;
-        }
-    }
 
     private static string GetHash(Dictionary<string, string> dict)
     {
@@ -356,7 +381,30 @@ public class TranslationCache
         if (bundle == null)
             return null;
 
-        var entries = new List<(string key, string value)>();
+        return ComputeMd5Hex(EnumerateBundleEntries(bundle));
+    }
+
+    private static string GetUiTextHash(UiTranslationTable tables) =>
+        tables == null ? null : ComputeMd5Hex(EnumerateUiTextEntries(tables));
+
+    private static IEnumerable<(string key, string value)> EnumerateUiTextEntries(
+        UiTranslationTable tables
+    )
+    {
+        foreach (var path in tables.Keys.OrderBy(k => k, StringComparer.Ordinal))
+        {
+            var translations = tables[path];
+            if (translations == null)
+                continue;
+            foreach (var source in translations.Keys.OrderBy(k => k, StringComparer.Ordinal))
+                yield return ($"{path}\x01{source}", translations[source]);
+        }
+    }
+
+    private static IEnumerable<(string key, string value)> EnumerateBundleEntries(
+        Dictionary<string, Dictionary<string, Dictionary<string, string>>> bundle
+    )
+    {
         foreach (var type in bundle.Keys.OrderBy(k => k, StringComparer.Ordinal))
         {
             var fields = bundle[type];
@@ -368,22 +416,44 @@ public class TranslationCache
                 if (dict == null)
                     continue;
                 foreach (var key in dict.Keys.OrderBy(k => k, StringComparer.Ordinal))
-                    entries.Add(($"{type}\x01{field}\x01{key}", dict[key]));
+                    yield return ($"{type}\x01{field}\x01{key}", dict[key]);
             }
         }
-        return ComputeMd5Hex(entries);
     }
 
     private static string ComputeMd5Hex(IEnumerable<(string key, string value)> entries)
     {
-        var sb = new StringBuilder();
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.MD5);
         foreach (var (k, v) in entries)
         {
-            sb.Append(k);
-            sb.Append('\0');
-            sb.Append(v);
-            sb.Append('\0');
+            AppendUtf8(hash, k);
+            hash.AppendData(EntrySeparator);
+            AppendUtf8(hash, v);
+            hash.AppendData(EntrySeparator);
         }
-        return Convert.ToHexString(MD5.HashData(Utf8.GetBytes(sb.ToString()))).ToLowerInvariant();
+        return Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
+    }
+
+    private static void AppendUtf8(IncrementalHash hash, string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return;
+
+        int byteCount = Utf8.GetByteCount(value);
+        byte[] rented = null;
+        Span<byte> buffer =
+            byteCount <= 512
+                ? stackalloc byte[byteCount]
+                : (rented = ArrayPool<byte>.Shared.Rent(byteCount));
+        try
+        {
+            int written = Utf8.GetBytes(value.AsSpan(), buffer);
+            hash.AppendData(buffer[..written]);
+        }
+        finally
+        {
+            if (rented != null)
+                ArrayPool<byte>.Shared.Return(rented);
+        }
     }
 }

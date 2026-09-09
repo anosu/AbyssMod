@@ -14,7 +14,7 @@ public class Manifest
     public string Hash { get; set; }
 
     [JsonExtensionData]
-    public Dictionary<string, object> Extra { get; set; } = new();
+    public Dictionary<string, JsonElement> Extra { get; set; } = new();
 
     [JsonPropertyName("novels")]
     public Dictionary<string, string> Novels { get; set; }
@@ -22,13 +22,9 @@ public class Manifest
     /// <summary>获取指定类型的清单哈希，不存在时返回 null。</summary>
     public string GetFileHash(string type)
     {
-        if (Extra == null || !Extra.TryGetValue(type, out var value) || value == null)
+        if (!Extra.TryGetValue(type, out var value) || value.ValueKind != JsonValueKind.String)
             return null;
 
-        return value is JsonElement je
-            ? je.ValueKind == JsonValueKind.String
-                ? je.GetString()
-                : null
-            : value as string;
+        return value.GetString();
     }
 }

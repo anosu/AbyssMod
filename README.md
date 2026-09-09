@@ -90,7 +90,7 @@
 
 | 配置项     | 可选项                          | 默认值                                                                                      | 说明                              |
 | ---------- | ------------------------------- | ------------------------------------------------------------------------------------------- | --------------------------------- |
-| `Enabled`  | `true`（开启），`false`（关闭） | `true`                                                                                      | 是否开启游戏内剧情翻译            |
+| `Enabled`  | `true`（开启），`false`（关闭） | `true`                                                                                      | 启动时是否应用全部翻译            |
 | `CDN`      | 任意有效的 CDN URL 地址         | `https://raw.githubusercontent.com/anosu/dotabyss-translation/refs/heads/main/translations` | 翻译数据 CDN 地址                 |
 | `Language` | `zh_Hans`（简体中文）           | `zh_Hans`                                                                                   | 翻译语言，支持 `zh_Hans` 简体中文 |
 
@@ -98,7 +98,7 @@
 
 | 配置项             | 默认值           | 说明                                                                |
 | ------------------ | ---------------- | ------------------------------------------------------------------- |
-| `Directory`        | `AbyssMod/cache` | 缓存目录；相对路径以 `BepInEx/plugins` 为基准，也可填写绝对路径     |
+| `Directory`        | `AbyssMod/translations` | 缓存目录；相对路径以 `BepInEx/plugins` 为基准，也可填写绝对路径 |
 | `PreferLocalFiles` | `false`          | 本地文件存在时优先使用，不校验远程哈希；manifest 始终先尝试远程加载 |
 
 ### `[Translation.Font]`
@@ -115,7 +115,7 @@
 | ------ | ----------------- |
 | `F8`   | 开启/关闭剧情翻译 |
 | `F9`   | 开启/关闭语音中断 |
-| `F10`  | 热重载配置文件    |
+| `F10`  | 重载运行时配置    |
 
 ---
 
@@ -126,6 +126,8 @@
 [dotabyss-translation](https://github.com/anosu/dotabyss-translation)
 
 缓存目录内部结构与该仓库的 `translations` 目录完全一致。可以直接将其内容放入缓存目录，或把 `Translation.Cache/Directory` 指向下载后的 `translations` 目录。
+
+MasterData 与 UI 翻译状态、翻译 CDN、语言、缓存目录、本地优先策略和字体路径均在插件启动时确定，修改后需要重启游戏；F8 只实时切换剧情翻译，F10 只重载可安全即时应用的运行时配置。
 
 ---
 

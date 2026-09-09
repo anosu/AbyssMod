@@ -1,6 +1,4 @@
-using System.Collections.Generic;
 using AbyssMod.Patches;
-using BepInEx.Configuration;
 using UnityEngine;
 
 namespace AbyssMod;
@@ -10,41 +8,27 @@ namespace AbyssMod;
 /// </summary>
 public class Hotkey : MonoBehaviour
 {
-    private const float DebounceInterval = 0.15f;
-    private readonly Dictionary<KeyCode, float> _lastPressTime = new();
-
     private void Update()
     {
         EnhancePatch.UpdateNovelLive2DScale();
 
-        if (Input.GetKeyDown(KeyCode.F8) && CanTrigger(KeyCode.F8))
+        if (Input.GetKeyDown(KeyCode.F8))
         {
             Config.Translation.Value = !Config.Translation.Value;
             TranslationPatch.RefreshCurrentMessage();
         }
 
-        CheckToggle(KeyCode.F9, Config.VoiceInterruption);
+        if (Input.GetKeyDown(KeyCode.F9))
+            Config.VoiceInterruption.Value = !Config.VoiceInterruption.Value;
 
-        if (Input.GetKeyDown(KeyCode.F10) && CanTrigger(KeyCode.F10))
+        if (Input.GetKeyDown(KeyCode.F10))
         {
             Plugin.ConfigFile.Reload();
             EnhancePatch.ReloadNovelLive2DScale();
-            Logger.Info("Config reloaded");
+            TranslationPatch.RefreshCurrentMessage();
+            Logger.Info(
+                "Config reloaded; translation source, cache, and font changes require restart"
+            );
         }
-    }
-
-    private void CheckToggle(KeyCode key, ConfigEntry<bool> entry)
-    {
-        if (Input.GetKeyDown(key) && CanTrigger(key))
-            entry.Value = !entry.Value;
-    }
-
-    private bool CanTrigger(KeyCode key)
-    {
-        float now = Time.time;
-        if (_lastPressTime.TryGetValue(key, out float last) && now - last < DebounceInterval)
-            return false;
-        _lastPressTime[key] = now;
-        return true;
     }
 }

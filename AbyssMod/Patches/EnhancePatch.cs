@@ -3,7 +3,6 @@ using Absf;
 using Absf.Api;
 using HarmonyLib;
 using Il2CppSystem.Threading;
-using Project.Nether.FloorSelection;
 using Project.Notice;
 using Project.Novel;
 using UnityEngine;
@@ -38,7 +37,7 @@ public static class EnhancePatch
 
         foreach (var d in drawables)
         {
-            if (d.name.StartsWith("Mosaic"))
+            if (d.name.StartsWith("Mosaic", System.StringComparison.Ordinal))
                 d.gameObject.SetActive(false);
         }
     }
@@ -106,8 +105,14 @@ public static class EnhancePatch
     public static void BeginNovelLive2DScale(NovelLive2DController __instance)
     {
         var root = __instance._canvasRoot;
-        var originalScale = root.localScale;
-        _novelLive2DOriginalScales[root] = originalScale;
+        if (root == null)
+            return;
+
+        if (!_novelLive2DOriginalScales.TryGetValue(root, out var originalScale))
+        {
+            originalScale = root.localScale;
+            _novelLive2DOriginalScales[root] = originalScale;
+        }
         root.localScale = ScaleNovelLive2D(originalScale, GetNovelLive2DScale());
     }
 
@@ -116,7 +121,11 @@ public static class EnhancePatch
     public static void EndNovelLive2DScale(NovelLive2DController __instance)
     {
         var root = __instance._canvasRoot;
-        if (_novelLive2DOriginalScales.Remove(root, out var originalScale))
+        if (
+            !object.ReferenceEquals(root, null)
+            && _novelLive2DOriginalScales.Remove(root, out var originalScale)
+            && root != null
+        )
             root.localScale = originalScale;
     }
 
@@ -172,8 +181,20 @@ public static class EnhancePatch
 
     private static void ApplyNovelLive2DScale()
     {
+        List<Transform> stale = null;
         foreach (var (root, originalScale) in _novelLive2DOriginalScales)
+        {
+            if (root == null)
+            {
+                (stale ??= new List<Transform>()).Add(root);
+                continue;
+            }
             root.localScale = ScaleNovelLive2D(originalScale, _novelLive2DScale);
+        }
+
+        if (stale != null)
+            foreach (var root in stale)
+                _novelLive2DOriginalScales.Remove(root);
     }
 
     private static Vector3 ScaleNovelLive2D(Vector3 originalScale, float scale) =>
@@ -184,20 +205,4 @@ public static class EnhancePatch
         _novelLive2DScaleSavePending = false;
         Config.NovelLive2DScale.Value = _novelLive2DScale;
     }
-
-    //[HarmonyPrefix]
-    //[HarmonyPatch(
-    //    typeof(NetherMapViewController),
-    //    nameof(NetherMapViewController.UpdateMapViewVisibilityStates)
-    //)]
-    //public static void SetNetherFloorVisibility(
-    //    NetherMapModel mapModel,
-    //    ref NetherFloorModel currentFloorModel
-    //)
-    //{
-    //    currentFloorModel = new NetherFloorModel
-    //    {
-    //        FloorLevel = int.MaxValue - NetherMapViewController.VisibleFloorLevelOffset,
-    //    };
-    //}
 }

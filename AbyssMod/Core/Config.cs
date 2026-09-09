@@ -1,5 +1,5 @@
 using BepInEx.Configuration;
-using Utility.Toast;
+using Utility.Notifications;
 
 namespace AbyssMod;
 
@@ -29,15 +29,18 @@ public static class Config
     public static ConfigEntry<string> TranslationCryptoTag;
     public static ConfigEntry<string> TranslationCryptoKey;
     public static ConfigEntry<string> FontBundlePath;
+    internal static bool TranslationEnabledAtStartup { get; private set; }
 
     public static void Initialize()
     {
         BindAllEntries();
+        TranslationEnabledAtStartup = Translation.Value;
         Plugin.ConfigFile.SettingChanged += (_, e) =>
         {
             var c = e.ChangedSetting;
-            Logger.Info($"[{c.Definition.Section}] {c.Definition.Key} => {c.BoxedValue}");
-            Toast.Info($"[{c.Definition.Section}]", $"{c.Definition.Key} => {c.BoxedValue}");
+            object value = ReferenceEquals(c, TranslationCryptoKey) ? "***" : c.BoxedValue;
+            Logger.Info($"[{c.Definition.Section}] {c.Definition.Key} => {value}");
+            Toast.Info($"[{c.Definition.Section}]", $"{c.Definition.Key} => {value}");
         };
     }
 
@@ -97,31 +100,31 @@ public static class Config
             "Translation",
             "Enabled",
             true,
-            "是否开启游戏内剧情翻译"
+            "是否开启翻译；MasterData 与 UI 文本仅在启动时读取此设置，剧情翻译可在运行时切换"
         );
         TranslationCDN = Plugin.ConfigFile.Bind(
             "Translation",
             "CDN",
             "https://raw.githubusercontent.com/anosu/dotabyss-translation/refs/heads/main/translations",
-            "翻译加载的CDN"
+            "翻译加载的CDN，修改后重启生效"
         );
         TranslationLanguage = Plugin.ConfigFile.Bind(
             "Translation",
             "Language",
             "zh_Hans",
-            "翻译语言，取值范围：[zh_Hans]"
+            "翻译语言，取值范围：[zh_Hans]，修改后重启生效"
         );
         TranslationCacheDirectory = Plugin.ConfigFile.Bind(
             "Translation.Cache",
             "Directory",
             $"{MyPluginInfo.PLUGIN_GUID}/translations",
-            "翻译缓存目录，默认相对于插件目录，也可使用绝对路径"
+            "翻译缓存目录，默认相对于插件目录，也可使用绝对路径；修改后重启生效"
         );
         TranslationPreferLocalFiles = Plugin.ConfigFile.Bind(
             "Translation.Cache",
             "PreferLocalFiles",
             false,
-            "本地翻译文件存在时是否忽略清单哈希并优先使用本地文件（manifest 除外）"
+            "本地翻译文件存在时是否忽略清单哈希并优先使用本地文件（manifest 除外）；修改后重启生效"
         );
         TranslationCryptoTag = Plugin.ConfigFile.Bind(
             "Translation.Crypto",
@@ -139,7 +142,7 @@ public static class Config
             "Translation.Font",
             "AssetBundlePath",
             $"{MyPluginInfo.PLUGIN_GUID}/fonts/ttcuyuanj",
-            "TMP字体AssetBundle的路径，默认相对于插件目录，也可使用绝对路径"
+            "TMP字体AssetBundle的路径，默认相对于插件目录，也可使用绝对路径；修改后重启生效"
         );
     }
 }

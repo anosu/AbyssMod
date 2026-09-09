@@ -10,6 +10,7 @@ namespace AbyssMod.Services;
 public static class TranslationPaths
 {
     public const string Manifest = "manifest";
+    public const string Names = "names";
     public const string Novels = "novels";
     public const string Static = "static";
     public const string UiTexts = "ui_texts";

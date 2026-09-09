@@ -17,37 +17,56 @@ public sealed class CryptoHandler : DelegatingHandler
     )
     {
         var response = await base.SendAsync(request, cancellationToken);
-
-        if (response.Content != null)
+        try
         {
-            var data = await response.Content.ReadAsByteArrayAsync(cancellationToken);
-            response.Content = new ByteArrayContent(Decrypt(data));
-        }
+            if (response.Content != null)
+            {
+                var originalContent = response.Content;
+                var data = await originalContent.ReadAsByteArrayAsync(cancellationToken);
+                var decrypted = Decrypt(data);
+                if (!ReferenceEquals(data, decrypted))
+                {
+                    var replacement = new ByteArrayContent(decrypted);
+                    replacement.Headers.ContentType = originalContent.Headers.ContentType;
+                    response.Content = replacement;
+                    originalContent.Dispose();
+                }
+            }
 
-        return response;
+            return response;
+        }
+        catch
+        {
+            response.Dispose();
+            throw;
+        }
     }
 
     private static byte[] Decrypt(byte[] data)
     {
-        var text = Encoding.UTF8.GetString(data);
-
-        if (!text.StartsWith(Config.TranslationCryptoTag.Value))
+        string tag = Config.TranslationCryptoTag.Value;
+        if (string.IsNullOrEmpty(tag))
             return data;
 
-        var xor = Convert.FromBase64String(text[Config.TranslationCryptoTag.Value.Length..]);
+        var tagBytes = Encoding.UTF8.GetBytes(tag);
+        if (
+            data.Length < tagBytes.Length
+            || !data.AsSpan(0, tagBytes.Length).SequenceEqual(tagBytes)
+        )
+            return data;
 
-        return Xor(xor, Encoding.UTF8.GetBytes(Config.TranslationCryptoKey.Value));
-    }
+        string key = Config.TranslationCryptoKey.Value;
+        if (string.IsNullOrEmpty(key))
+            throw new InvalidOperationException("Translation crypto key cannot be empty");
 
-    private static byte[] Xor(byte[] data, byte[] key)
-    {
-        var result = new byte[data.Length];
+        var decrypted = Convert.FromBase64String(
+            Encoding.UTF8.GetString(data, tagBytes.Length, data.Length - tagBytes.Length)
+        );
+        var keyBytes = Encoding.UTF8.GetBytes(key);
 
-        for (int i = 0; i < data.Length; i++)
-        {
-            result[i] = (byte)(data[i] ^ key[i % key.Length]);
-        }
+        for (int i = 0; i < decrypted.Length; i++)
+            decrypted[i] ^= keyBytes[i % keyBytes.Length];
 
-        return result;
+        return decrypted;
     }
 }

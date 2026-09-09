@@ -1,122 +1,244 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
-using AbyssMod.Services;
+using System.Linq;
+using System.Reflection;
+using System.Threading.Tasks;
+using Absf.Master;
+using BepInEx.Unity.IL2CPP.Utils.Collections;
 using HarmonyLib;
 using Project.Master;
 
 namespace AbyssMod.Patches;
 
 /// <summary>
-/// 在 masterdata 反序列化后、写入 MasterDataStore 缓存前替换静态文本。
-/// 翻译规则由 Config/master.json 驱动，新增表无需改本文件。
+/// 在 MasterData 单表写入缓存后立即替换静态文本。
 /// 剧情正文脚本不在 masterdata 内，仍由 TranslationPatch 处理。
 /// </summary>
 [HarmonyPatch]
 public static class MasterDataPatch
 {
-    [HarmonyPrefix]
-    [HarmonyPatch(typeof(MasterDataStore), nameof(MasterDataStore._DownloadFirstAsync_b__8_0))]
-    public static void TranslateBeforeCache(
-        Il2CppSystem.Type elementType,
-        Il2CppSystem.Object rowsArray
+    private const string DownloadCallbackPrefix = "_DownloadFirstAsync_b__";
+    private const int SummaryIdleFrames = 60;
+
+    private static readonly Dictionary<
+        string,
+        (Il2CppSystem.Type Type, IMasterLoadResult Result)
+    > Pending = new(StringComparer.Ordinal);
+    private static readonly HashSet<string> ProcessedTables = new(StringComparer.Ordinal);
+    private static bool _pendingTranslationRunning;
+    private static bool _summaryCoroutineRunning;
+    private static bool _summaryLogged;
+    private static int _summaryRevision;
+    private static int _summaryEpoch;
+    private static int _translatedTables;
+    private static int _translatedEntries;
+
+    [HarmonyTargetMethod]
+    private static MethodBase TargetMethod()
+    {
+        Type[] parameterTypes =
+        {
+            typeof(Il2CppSystem.Type),
+            typeof(Il2CppSystem.Object),
+            typeof(bool),
+        };
+        var method = AccessTools
+            .GetDeclaredMethods(typeof(MasterDataStore))
+            .SingleOrDefault(candidate =>
+                candidate.Name.StartsWith(DownloadCallbackPrefix, StringComparison.Ordinal)
+                && candidate.ReturnType == typeof(void)
+                && candidate
+                    .GetParameters()
+                    .Select(parameter => parameter.ParameterType)
+                    .SequenceEqual(parameterTypes)
+            );
+
+        return method
+            ?? throw new MissingMethodException(
+                typeof(MasterDataStore).FullName,
+                $"{DownloadCallbackPrefix}*(Type, Object, Boolean)"
+            );
+    }
+
+    [HarmonyPostfix]
+    public static void TranslateCachedTable(
+        MasterDataStore __instance,
+        Il2CppSystem.Type elementType
     )
     {
-        if (!Config.Translation.Value || Plugin.Trans == null || rowsArray == null)
-            return;
-
         try
         {
-            string typeName = elementType?.Name;
-            if (typeName == null)
+            bool ready = Plugin.Trans.MasterDataTranslationReady;
+            if (ready && !Plugin.Trans.HasMasterDataTranslation(elementType))
                 return;
 
-            if (!MasterMapping.Tables.TryGetValue(typeName, out var table))
-                return; // 该表无翻译规则，等价旧代码的 _ => 0
-
-            Plugin.Trans.EnsureStaticTranslationsLoaded();
-
-            var arrayPtr = rowsArray.Pointer;
-            if (arrayPtr == IntPtr.Zero)
-                return;
-
-            int rowCount = MasterMapping.GetArrayLength(arrayPtr);
-            if (rowCount <= 0)
-                return;
-
-            var arrayStart = MasterMapping.GetArrayStartPointer(arrayPtr);
-            var dictCache = new Dictionary<(string, string), Dictionary<string, string>>();
-
-            int count = 0;
-            for (int i = 0; i < rowCount; i++)
+            var result = __instance._caches[elementType];
+            if (ready)
             {
-                var rowPtr = MasterMapping.GetArrayElement(arrayStart, i);
-                if (rowPtr == IntPtr.Zero)
-                    continue;
-                count += TranslateRow(rowPtr, table, dictCache);
+                Translate(elementType, result);
+                return;
             }
+
+            Pending[elementType.Name] = (elementType, result);
+            if (!_pendingTranslationRunning)
+            {
+                _pendingTranslationRunning = true;
+                try
+                {
+                    Plugin.Instance.StartCoroutine(TranslatePendingWhenReady().WrapToIl2Cpp());
+                }
+                catch
+                {
+                    _pendingTranslationRunning = false;
+                    throw;
+                }
+            }
+            else
+                _ = Plugin.Trans.EnsureStaticTranslationsLoadedAsync();
         }
         catch (Exception e)
         {
-            Logger.Error($"[MasterDataTranslation] threw: {e}");
+            Logger.Error($"[MasterDataTranslation] failed [{elementType?.Name}]: {e}");
         }
     }
 
-    private static int TranslateRow(
-        IntPtr rowPtr,
-        TableMapping table,
-        Dictionary<(string, string), Dictionary<string, string>> dictCache
-    )
+    private static IEnumerator TranslatePendingWhenReady()
     {
-        int count = 0;
-        foreach (var entry in table.Fields)
+        Task loadTask;
+        try
         {
-            string original = MasterMapping.ReadField(rowPtr, entry);
-            if (string.IsNullOrEmpty(original))
-                continue;
-
-            var dict = GetCachedTable(table.TranslationKey, entry.Name, dictCache);
-            if (
-                dict == null
-                || !dict.TryGetValue(original, out string translated)
-                || string.IsNullOrEmpty(translated)
-            )
-                continue;
-
-            MasterMapping.WriteField(
-                rowPtr,
-                entry,
-                entry.Seal ? RestoreSealNames(translated) : translated
-            );
-            count++;
+            loadTask = Plugin.Trans.EnsureStaticTranslationsLoadedAsync();
         }
-        return count;
+        catch (Exception e)
+        {
+            Logger.Error($"[MasterDataTranslation] deferred load failed: {e}");
+            _pendingTranslationRunning = false;
+            yield break;
+        }
+
+        while (!loadTask.IsCompleted)
+            yield return null;
+
+        try
+        {
+            try
+            {
+                loadTask.GetAwaiter().GetResult();
+            }
+            catch (Exception e)
+            {
+                Logger.Error($"[MasterDataTranslation] deferred translation load failed: {e}");
+            }
+
+            if (!Plugin.Trans.MasterDataTranslationReady)
+            {
+                Logger.Warn(
+                    $"[MasterDataTranslation] plan unavailable; waiting with cached tables: {Pending.Count}"
+                );
+                while (Pending.Count > 0 && !Plugin.Trans.MasterDataTranslationReady)
+                    yield return null;
+            }
+
+            if (Pending.Count == 0)
+                yield break;
+
+            foreach (var (type, result) in Pending.Values)
+                Translate(type, result);
+            Pending.Clear();
+        }
+        finally
+        {
+            _pendingTranslationRunning = false;
+        }
     }
 
-    private static Dictionary<string, string> GetCachedTable(
-        string dictName,
-        string fieldName,
-        Dictionary<(string, string), Dictionary<string, string>> dictCache
-    )
+    private static void Translate(Il2CppSystem.Type type, IMasterLoadResult result)
     {
-        var key = (dictName, fieldName);
-        if (dictCache.TryGetValue(key, out var dict))
-            return dict;
+        if (!Plugin.Trans.TryTranslateMasterDataCache(type, result, out int translatedEntries))
+            return;
 
-        dict = Plugin.Trans.GetFieldTable(dictName, fieldName);
-        dictCache[key] = dict;
-        return dict;
+        string typeName = type.Name;
+        if (!ProcessedTables.Add(typeName))
+            return;
+
+        if (translatedEntries > 0)
+        {
+            _translatedTables++;
+            _translatedEntries += translatedEntries;
+        }
+
+        int plannedTables = Plugin.Trans.MasterDataTranslationTableCount;
+        if (!_summaryLogged && plannedTables > 0 && ProcessedTables.Count >= plannedTables)
+            LogSummary(plannedTables);
+        else
+            ScheduleSummary();
     }
 
-    /// <summary>纹章名繁简修正：译文中混入的简体「纹章：冲击/热情」还原为游戏内的繁体写法。</summary>
-    private static string RestoreSealNames(string text)
+    private static void ScheduleSummary()
     {
-        if (string.IsNullOrEmpty(text))
-            return text;
+        _summaryRevision++;
+        if (_summaryCoroutineRunning || _summaryLogged)
+            return;
 
-        if (!text.Contains("纹章：", StringComparison.Ordinal))
-            return text;
+        _summaryCoroutineRunning = true;
+        try
+        {
+            Plugin.Instance.StartCoroutine(LogSummaryWhenIdle(_summaryEpoch).WrapToIl2Cpp());
+        }
+        catch
+        {
+            _summaryCoroutineRunning = false;
+            throw;
+        }
+    }
 
-        return text.Replace("纹章：冲击", "紋章：衝撃", StringComparison.Ordinal)
-            .Replace("纹章：热情", "紋章：情熱", StringComparison.Ordinal);
+    private static IEnumerator LogSummaryWhenIdle(int epoch)
+    {
+        try
+        {
+            while (!_summaryLogged && epoch == _summaryEpoch)
+            {
+                int revision = _summaryRevision;
+                for (int frame = 0; frame < SummaryIdleFrames; frame++)
+                    yield return null;
+
+                if (revision == _summaryRevision)
+                    LogSummary(Plugin.Trans.MasterDataTranslationTableCount);
+            }
+        }
+        finally
+        {
+            if (epoch == _summaryEpoch)
+                _summaryCoroutineRunning = false;
+        }
+    }
+
+    private static void LogSummary(int plannedTables)
+    {
+        _summaryLogged = true;
+        Logger.Info(
+            $"[MDT] MasterData translation summary. Planned: {plannedTables}, "
+                + $"Processed: {ProcessedTables.Count}, Translated: {_translatedTables}, "
+                + $"Entries: {_translatedEntries}"
+        );
+    }
+
+    internal static void Reset()
+    {
+        ResetPending();
+        ProcessedTables.Clear();
+        _summaryEpoch++;
+        _summaryCoroutineRunning = false;
+        _summaryLogged = false;
+        _summaryRevision = 0;
+        _translatedTables = 0;
+        _translatedEntries = 0;
+    }
+
+    private static void ResetPending()
+    {
+        Pending.Clear();
+        _pendingTranslationRunning = false;
     }
 }
