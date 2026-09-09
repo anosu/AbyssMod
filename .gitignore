@@ -427,3 +427,9 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Machine-specific build and shared source configuration
+/Build.local.props
+/SharedDependencies.local.props
+/artifacts/
+/.build-check/

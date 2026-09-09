@@ -30,12 +30,7 @@ public sealed class ImageReplacementCache
     private readonly string _cacheRoot;
     private readonly HttpClient _client;
 
-    public ImageReplacementCache(
-        string cdn,
-        string language,
-        string cacheRoot,
-        HttpClient client
-    )
+    public ImageReplacementCache(string cdn, string language, string cacheRoot, HttpClient client)
     {
         _cdn = cdn.TrimEnd('/');
         _language = language;
@@ -106,10 +101,7 @@ public sealed class ImageReplacementCache
                 downloaded++;
             }
 
-            bool manifestChanged = !IsLocalFileValid(
-                ReplacementManifestFile,
-                manifestHash
-            );
+            bool manifestChanged = !IsLocalFileValid(ReplacementManifestFile, manifestHash);
             if (manifestChanged)
                 await WriteStagedFileAsync(
                     stagingRoot,
@@ -128,9 +120,7 @@ public sealed class ImageReplacementCache
         }
         catch (Exception e)
         {
-            Logger.Warn(
-                $"Image replacement cache sync failed; using local cache: {e.Message}"
-            );
+            Logger.Warn($"Image replacement cache sync failed; using local cache: {e.Message}");
         }
         finally
         {
@@ -183,13 +173,9 @@ public sealed class ImageReplacementCache
                 continue;
             }
             if (!IsMd5(hash))
-                throw new InvalidDataException(
-                    $"invalid MD5 for {RemoteDirectory}/{relativeFile}"
-                );
+                throw new InvalidDataException($"invalid MD5 for {RemoteDirectory}/{relativeFile}");
             if (!result.TryAdd(normalized, hash.ToLowerInvariant()))
-                throw new InvalidDataException(
-                    $"duplicate replacement hash path: {relativeFile}"
-                );
+                throw new InvalidDataException($"duplicate replacement hash path: {relativeFile}");
         }
         return result;
     }
@@ -245,10 +231,7 @@ public sealed class ImageReplacementCache
 
     private async Task<byte[]> DownloadBytesAsync(string url, long maxBytes)
     {
-        using var response = await _client.GetAsync(
-            url,
-            HttpCompletionOption.ResponseHeadersRead
-        );
+        using var response = await _client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
         if (!response.IsSuccessStatusCode)
             throw new HttpRequestException(
                 $"GET {url} returned {(int)response.StatusCode} {response.StatusCode}"
@@ -266,18 +249,10 @@ public sealed class ImageReplacementCache
     {
         string localPath = ResolveLocalPath(relativeFile);
         return File.Exists(localPath)
-            && string.Equals(
-                HashFile(localPath),
-                expectedHash,
-                StringComparison.OrdinalIgnoreCase
-            );
+            && string.Equals(HashFile(localPath), expectedHash, StringComparison.OrdinalIgnoreCase);
     }
 
-    private async Task WriteStagedFileAsync(
-        string stagingRoot,
-        string relativeFile,
-        byte[] bytes
-    )
+    private async Task WriteStagedFileAsync(string stagingRoot, string relativeFile, byte[] bytes)
     {
         string stagedPath = ResolveUnderRoot(stagingRoot, relativeFile);
         string directory = Path.GetDirectoryName(stagedPath);
@@ -322,10 +297,9 @@ public sealed class ImageReplacementCache
         string candidate = Path.GetFullPath(
             Path.Combine(fullRoot, relativeFile.Replace('/', Path.DirectorySeparatorChar))
         );
-        string rootPrefix = fullRoot.TrimEnd(
-                Path.DirectorySeparatorChar,
-                Path.AltDirectorySeparatorChar
-            ) + Path.DirectorySeparatorChar;
+        string rootPrefix =
+            fullRoot.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            + Path.DirectorySeparatorChar;
         if (!candidate.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException($"replacement file escapes cache root: {relativeFile}");
         return candidate;
@@ -335,10 +309,7 @@ public sealed class ImageReplacementCache
     {
         string url =
             $"{_cdn}/{RemoteDirectory}/"
-            + string.Join(
-                "/",
-                relativeFile.Split('/').Select(Uri.EscapeDataString)
-            );
+            + string.Join("/", relativeFile.Split('/').Select(Uri.EscapeDataString));
         return AppendQueryParameter(url, "hash", expectedHash);
     }
 

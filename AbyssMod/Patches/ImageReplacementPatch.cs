@@ -52,7 +52,12 @@ public static class ImageReplacementPatch
 
     [
         HarmonyPrefix,
-        HarmonyPatch(typeof(NovelModelBG), nameof(NovelModelBG.SetBG), typeof(string), typeof(Sprite))
+        HarmonyPatch(
+            typeof(NovelModelBG),
+            nameof(NovelModelBG.SetBG),
+            typeof(string),
+            typeof(Sprite)
+        )
     ]
     public static void ReplaceNovelBackground(string id, ref Sprite sprite)
     {

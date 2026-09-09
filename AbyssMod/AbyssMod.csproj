@@ -1,57 +1,50 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <!-- Per-user path. Set a GameDir environment variable to override on your machine. -->
-    <GameDir Condition="'$(GameDir)' == ''">E:\Games\DMM GAMES\dotabyss_x_cl</GameDir>
-    <Authors>Jitsu</Authors>
-  </PropertyGroup>
+    <Import Project="../build/PcBuild.props" />
+    <Import Project="../build/SharedDependencies.props" />
+    <PropertyGroup>
+        <Authors>Jitsu</Authors>
+    </PropertyGroup>
 
-  <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
-    <AssemblyName>AbyssMod</AssemblyName>
-    <Product>AbyssMod</Product>
-    <Version>1.1.2</Version>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <LangVersion>latest</LangVersion>
-    <RestoreAdditionalProjectSources>
+    <PropertyGroup>
+        <TargetFramework>net6.0</TargetFramework>
+        <AssemblyName>AbyssMod</AssemblyName>
+        <Product>AbyssMod</Product>
+        <Version>1.1.2</Version>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <LangVersion>latest</LangVersion>
+        <RestoreAdditionalProjectSources>
       https://api.nuget.org/v3/index.json;
       https://nuget.bepinex.dev/v3/index.json;
       https://nuget.samboy.dev/v3/index.json
     </RestoreAdditionalProjectSources>
-    <RootNamespace>AbyssMod</RootNamespace>
-    <BaseOutputPath>$(GameDir)\BepInEx\plugins\$(Product)</BaseOutputPath>
-    <ProduceReferenceAssembly>True</ProduceReferenceAssembly>
-  </PropertyGroup>
+        <RootNamespace>AbyssMod</RootNamespace>
+        <BaseOutputPath>$(GameDir)\BepInEx\plugins\$(Product)</BaseOutputPath>
+        <ProduceReferenceAssembly>True</ProduceReferenceAssembly>
+    </PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <DebugType>none</DebugType>
-    <GenerateAssemblyInfo>True</GenerateAssemblyInfo>
-  </PropertyGroup>
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+        <DebugType>none</DebugType>
+        <GenerateAssemblyInfo>True</GenerateAssemblyInfo>
+    </PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <DebugType>none</DebugType>
-    <GenerateAssemblyInfo>True</GenerateAssemblyInfo>
-  </PropertyGroup>
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+        <DebugType>none</DebugType>
+        <GenerateAssemblyInfo>True</GenerateAssemblyInfo>
+    </PropertyGroup>
 
-  <PropertyGroup>
-    <!-- Resolve Utility.dll from whichever source exists on this machine:
-         the sibling Utility project's build output, or the deployed copy under GameDir. -->
-    <UtilityDll Condition="Exists('..\..\Utility\Utility\bin\Release\net6.0\Utility.dll')">..\..\Utility\Utility\bin\Release\net6.0\Utility.dll</UtilityDll>
-    <UtilityDll Condition="'$(UtilityDll)' == '' And Exists('$(BaseOutputPath)\Utility.dll')">$(BaseOutputPath)\Utility.dll</UtilityDll>
-  </PropertyGroup>
+    <ItemGroup>
+        <GameDlls Include="$(GameInteropDir)/*.dll" />
+        <Reference Include="@(GameDlls)">
+            <Private>false</Private>
+        </Reference>
+    </ItemGroup>
 
-  <ItemGroup>
-    <GameDlls Include="$(GameDir)\BepInEx\interop\*.dll"></GameDlls>
-    <Reference Include="@(GameDlls)">
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="Utility">
-      <HintPath>$(UtilityDll)</HintPath>
-      <Private>True</Private>
-    </Reference>
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="BepInEx.Unity.IL2CPP" Version="6.0.0-be.*" IncludeAssets="compile" />
-    <PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" />
-  </ItemGroup>
+    <ItemGroup>
+        <PackageReference
+            Include="BepInEx.Unity.IL2CPP"
+            Version="6.0.0-be.*"
+            IncludeAssets="compile"
+        />
+        <PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" />
+    </ItemGroup>
 </Project>

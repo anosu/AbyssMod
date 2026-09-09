@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <SharedDependencyMode>local</SharedDependencyMode>
+    <UtilityProjectPath>$(MSBuildThisFileDirectory)../Utility/Utility/Utility.csproj</UtilityProjectPath>
+  </PropertyGroup>
+</Project>

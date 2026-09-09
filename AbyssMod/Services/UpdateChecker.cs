@@ -8,8 +8,7 @@ namespace AbyssMod.Services;
 /// <summary>通过 GitHub 最新 Release 的重定向检查插件更新。</summary>
 internal static class UpdateChecker
 {
-    private const string LatestReleaseUrl =
-        "https://github.com/anosu/AbyssMod/releases/latest";
+    private const string LatestReleaseUrl = "https://github.com/anosu/AbyssMod/releases/latest";
     private const string ReleaseTagPath = "/releases/tag/";
 
     public static async Task CheckAsync(HttpClient httpClient, string currentVersion)

@@ -1,0 +1,8 @@
+dependencies/
+artifacts/
+.build-check/
+**/bin/
+**/obj/
+shared/
+SharedDependencies.local.props
+Build.local.props

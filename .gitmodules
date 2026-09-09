@@ -1,0 +1,3 @@
+[submodule "shared/Utility"]
+	path = shared/Utility
+	url = https://github.com/anosu/Utility.git

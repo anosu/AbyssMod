@@ -95,7 +95,9 @@ public class Plugin : BasePlugin
 
         Trans = new TranslationManager(
             cache,
-            new AssetBundleLoader<TMP_FontAsset>(ResolvePluginPath(AbyssMod.Config.FontBundlePath.Value))
+            new AssetBundleLoader<TMP_FontAsset>(
+                ResolvePluginPath(AbyssMod.Config.FontBundlePath.Value)
+            )
         );
     }
 

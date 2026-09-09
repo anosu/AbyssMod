@@ -132,13 +132,7 @@ internal sealed class MasterDataTranslator
 
             try
             {
-                bindings.Add(
-                    CreateFieldBinding(
-                        rowType,
-                        property,
-                        translations
-                    )
-                );
+                bindings.Add(CreateFieldBinding(rowType, property, translations));
             }
             catch (Exception e)
             {
@@ -182,11 +176,7 @@ internal sealed class MasterDataTranslator
         var set = Expression
             .Lambda<Action<object, string>>(Expression.Assign(member, value), row, value)
             .Compile();
-        return new FieldBinding(
-            get,
-            set,
-            translations
-        );
+        return new FieldBinding(get, set, translations);
     }
 
     private static string ToClassName(string tableName)

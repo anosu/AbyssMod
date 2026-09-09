@@ -4,6 +4,8 @@
 
 本仓库适用于 **Windows 平台 DMM Game Player 端**
 
+开发环境、Utility 源码引用和代码格式化见 [构建说明](docs/BUILDING.md)。
+
 使用时如遇到问题请务必先阅读下面的[常见问题](#-常见问题)
 
 ---

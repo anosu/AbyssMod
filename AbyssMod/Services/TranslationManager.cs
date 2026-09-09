@@ -1,8 +1,8 @@
-using BepInEx.Unity.IL2CPP.Utils.Collections;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using BepInEx.Unity.IL2CPP.Utils.Collections;
 using TMPro;
 using Utility.Assets;
 using Utility.Notifications;

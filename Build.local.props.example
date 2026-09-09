@@ -1,0 +1,7 @@
+<Project>
+  <PropertyGroup>
+    <GameDir>D:/Games/dotabyss_x_cl</GameDir>
+    <!-- Optional: use a separate directory containing PC BepInEx interop DLLs. -->
+    <!-- <GameInteropDir>D:/Interop/dotabyss_x_cl</GameInteropDir> -->
+  </PropertyGroup>
+</Project>

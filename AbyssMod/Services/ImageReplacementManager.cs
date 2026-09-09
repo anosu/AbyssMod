@@ -19,14 +19,13 @@ public sealed class ImageReplacementManager : IDisposable
     private const long MaxImageBytes = 64L * 1024 * 1024;
     private readonly string _replacementRoot;
     private readonly string _manifestPath;
-    private readonly Dictionary<string, string> _novelBackgrounds =
-        new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _novelBackgrounds = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> _spriteNames = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, List<UiRule>> _uiComponents =
-        new(StringComparer.Ordinal);
+    private readonly Dictionary<string, List<UiRule>> _uiComponents = new(StringComparer.Ordinal);
     private readonly HashSet<string> _uiSourceSprites = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, Texture2D> _textureCache =
-        new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, Texture2D> _textureCache = new(
+        StringComparer.OrdinalIgnoreCase
+    );
     private readonly Dictionary<LogicalCanvasKey, Texture2D> _logicalCanvasCache = new();
     private readonly Dictionary<SpriteCacheKey, Sprite> _spriteCache = new();
     private readonly HashSet<int> _replacementSpriteIds = new();
@@ -45,9 +44,7 @@ public sealed class ImageReplacementManager : IDisposable
     }
 
     public bool Enabled =>
-        _novelBackgrounds.Count > 0
-        || _spriteNames.Count > 0
-        || _uiComponents.Count > 0;
+        _novelBackgrounds.Count > 0 || _spriteNames.Count > 0 || _uiComponents.Count > 0;
 
     public void Initialize()
     {
@@ -61,9 +58,7 @@ public sealed class ImageReplacementManager : IDisposable
         {
             var manifestFile = new FileInfo(_manifestPath);
             if (manifestFile.Length > MaxManifestBytes)
-                throw new InvalidDataException(
-                    $"manifest exceeds {MaxManifestBytes / 1024} KiB"
-                );
+                throw new InvalidDataException($"manifest exceeds {MaxManifestBytes / 1024} KiB");
 
             string json = File.ReadAllText(_manifestPath);
             var manifest = JsonSerializer.Deserialize<ImageReplacementManifest>(
@@ -105,10 +100,7 @@ public sealed class ImageReplacementManager : IDisposable
         if (!CanReplace(original))
             return original;
 
-        if (
-            !string.IsNullOrEmpty(id)
-            && _novelBackgrounds.TryGetValue(id, out string file)
-        )
+        if (!string.IsNullOrEmpty(id) && _novelBackgrounds.TryGetValue(id, out string file))
             return GetOrCreateSprite(file, original);
         if (TryMatchSpriteName(original, out file))
             return GetOrCreateSprite(file, original);
@@ -268,11 +260,7 @@ public sealed class ImageReplacementManager : IDisposable
         }
     }
 
-    private bool TryResolveImagePath(
-        string relativeFile,
-        out string fullPath,
-        out string error
-    )
+    private bool TryResolveImagePath(string relativeFile, out string fullPath, out string error)
     {
         fullPath = null;
         error = null;
@@ -305,7 +293,8 @@ public sealed class ImageReplacementManager : IDisposable
         try
         {
             string candidate = Path.GetFullPath(Path.Combine(_replacementRoot, relativeFile));
-            string rootPrefix = _replacementRoot.TrimEnd(
+            string rootPrefix =
+                _replacementRoot.TrimEnd(
                     Path.DirectorySeparatorChar,
                     Path.AltDirectorySeparatorChar
                 ) + Path.DirectorySeparatorChar;
@@ -332,11 +321,7 @@ public sealed class ImageReplacementManager : IDisposable
         return _spriteNames.TryGetValue(original.name, out file);
     }
 
-    private static bool TryMatchUiRule(
-        List<UiRule> rules,
-        Sprite original,
-        out string file
-    )
+    private static bool TryMatchUiRule(List<UiRule> rules, Sprite original, out string file)
     {
         file = null;
         string sourceName = original?.name;
@@ -517,14 +502,12 @@ public sealed class ImageReplacementManager : IDisposable
             }
             if (!ImageConversion.LoadImage(texture, imageData, true))
                 throw new InvalidDataException("Unity could not decode the image");
-            ValidateImageDimensions(
-                (uint)texture.width,
-                (uint)texture.height,
-                "decoded image"
-            );
+            ValidateImageDimensions((uint)texture.width, (uint)texture.height, "decoded image");
 
             _textureCache[file] = texture;
-            Logger.Info($"Replacement image loaded: {Path.GetRelativePath(_replacementRoot, file)}");
+            Logger.Info(
+                $"Replacement image loaded: {Path.GetRelativePath(_replacementRoot, file)}"
+            );
             return texture;
         }
         catch (Exception e)
@@ -532,7 +515,9 @@ public sealed class ImageReplacementManager : IDisposable
             if (texture != null)
                 UnityEngine.Object.Destroy(texture);
             _failedFiles.Add(file);
-            Logger.Error($"Failed to load replacement image '{Path.GetFileName(file)}': {e.Message}");
+            Logger.Error(
+                $"Failed to load replacement image '{Path.GetFileName(file)}': {e.Message}"
+            );
             return null;
         }
     }
@@ -616,10 +601,7 @@ public sealed class ImageReplacementManager : IDisposable
                 if (segmentLength < 11)
                     throw new InvalidDataException("JPEG frame header is incomplete");
                 int componentCount = bytes[offset + 7];
-                if (
-                    componentCount <= 0
-                    || segmentLength != 8 + 3 * componentCount
-                )
+                if (componentCount <= 0 || segmentLength != 8 + 3 * componentCount)
                     throw new InvalidDataException("JPEG frame header has an invalid length");
                 uint height = (uint)(bytes[offset + 3] << 8 | bytes[offset + 4]);
                 uint width = (uint)(bytes[offset + 5] << 8 | bytes[offset + 6]);
@@ -732,16 +714,7 @@ public sealed class ImageReplacementManager : IDisposable
             offsetY = (targetHeight - source.height) / 2;
         }
 
-        if (
-            !FitsCanvas(
-                offsetX,
-                offsetY,
-                source.width,
-                source.height,
-                targetWidth,
-                targetHeight
-            )
-        )
+        if (!FitsCanvas(offsetX, offsetY, source.width, source.height, targetWidth, targetHeight))
             return false;
 
         layout = new LogicalCanvasLayout(
@@ -791,10 +764,7 @@ public sealed class ImageReplacementManager : IDisposable
         }
     }
 
-    private static Texture2D CreateLogicalCanvas(
-        Texture2D source,
-        LogicalCanvasLayout layout
-    )
+    private static Texture2D CreateLogicalCanvas(Texture2D source, LogicalCanvasLayout layout)
     {
         RenderTexture converted = null;
         RenderTexture temporary = null;

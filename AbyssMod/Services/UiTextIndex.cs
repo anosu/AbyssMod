@@ -9,9 +9,7 @@ namespace AbyssMod.Services;
 internal sealed class UiTextIndex
 {
     private static readonly Regex PlaceholderRegex = new(@"\{(\d+)\}", RegexOptions.Compiled);
-    private readonly Dictionary<string, UiTextPathRules> _exactPaths = new(
-        StringComparer.Ordinal
-    );
+    private readonly Dictionary<string, UiTextPathRules> _exactPaths = new(StringComparer.Ordinal);
     private readonly List<UiTextPathRules> _wildcardPaths = new();
 
     public UiTextIndex(Dictionary<string, Dictionary<string, string>> table)
@@ -28,18 +26,13 @@ internal sealed class UiTextIndex
                 _exactPaths[path] = rules;
         }
 
-        _wildcardPaths.Sort(
-            static (left, right) => right.Specificity.CompareTo(left.Specificity)
-        );
+        _wildcardPaths.Sort(static (left, right) => right.Specificity.CompareTo(left.Specificity));
     }
 
     public bool TryTranslate(string transformPath, string sourceText, out string translatedText)
     {
         translatedText = null;
-        if (
-            string.IsNullOrEmpty(transformPath)
-            || string.IsNullOrEmpty(sourceText)
-        )
+        if (string.IsNullOrEmpty(transformPath) || string.IsNullOrEmpty(sourceText))
             return false;
 
         if (
@@ -63,15 +56,10 @@ internal sealed class UiTextIndex
     private sealed class UiTextPathRules
     {
         private readonly Regex _pathRegex;
-        private readonly Dictionary<string, string> _exactTexts = new(
-            StringComparer.Ordinal
-        );
+        private readonly Dictionary<string, string> _exactTexts = new(StringComparer.Ordinal);
         private readonly List<UiTextPattern> _patterns = new();
 
-        public UiTextPathRules(
-            string path,
-            Dictionary<string, string> translations
-        )
+        public UiTextPathRules(string path, Dictionary<string, string> translations)
         {
             Path = path;
             IsWildcard = path.Contains('*', StringComparison.Ordinal);
@@ -118,11 +106,7 @@ internal sealed class UiTextIndex
         {
             var pattern = new StringBuilder("^");
             foreach (char character in path)
-                pattern.Append(
-                    character == '*'
-                        ? "[^/]*"
-                        : Regex.Escape(character.ToString())
-                );
+                pattern.Append(character == '*' ? "[^/]*" : Regex.Escape(character.ToString()));
             pattern.Append('$');
             return pattern.ToString();
         }
@@ -137,9 +121,7 @@ internal sealed class UiTextIndex
         {
             _sourceRegex = new Regex(
                 BuildSourcePattern(sourceTemplate),
-                RegexOptions.Compiled
-                    | RegexOptions.CultureInvariant
-                    | RegexOptions.Singleline
+                RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.Singleline
             );
             _translatedTemplate = translatedTemplate;
         }
@@ -179,9 +161,7 @@ internal sealed class UiTextIndex
 
                 string groupName = $"p{match.Groups[1].Value}";
                 pattern.Append(
-                    seenPlaceholders.Add(groupName)
-                        ? $"(?<{groupName}>.+?)"
-                        : $"\\k<{groupName}>"
+                    seenPlaceholders.Add(groupName) ? $"(?<{groupName}>.+?)" : $"\\k<{groupName}>"
                 );
                 lastIndex = match.Index + match.Length;
             }
@@ -192,4 +172,3 @@ internal sealed class UiTextIndex
         }
     }
 }
-
