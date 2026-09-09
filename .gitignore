@@ -433,3 +433,4 @@ FodyWeavers.xsd
 /SharedDependencies.local.props
 /artifacts/
 /.build-check/
+/*.local.slnx

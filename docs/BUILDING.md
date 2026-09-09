@@ -71,3 +71,17 @@ dotnet csharpier format .
 dotnet csharpier check .
 dotnet test tests/AbyssMod.Tests/AbyssMod.Tests.csproj -c Release
 ```
+
+## Visual Studio
+
+标准解决方案已包含固定版本的 Utility 项目。在 VS 中打开标准解决方案时，不应用 `SharedDependencies.local.props` 的本地源码覆盖。
+
+如果需要在 VS 中同时修改同级 Utility，先配置 `SharedDependencies.local.props`，然后在本仓库运行：
+
+```powershell
+pwsh -NoProfile -File shared/Utility/scripts/New-ModSolution.ps1 -Project AbyssMod/AbyssMod.csproj
+```
+
+打开生成的 `AbyssMod.local.slnx`（需要 VS 2022 17.14 或更新版本）。它包含实际引用的共享项目，忽略 Git 追踪；修改共享项目路径后重新运行该命令。不要只向标准解决方案添加本机路径后提交。
+
+VS 使用共享项目自身的 `bin` / `obj` 输出，以保证解决方案构建和项目引用查找一致；命令行项目构建继续使用本仓库 `artifacts/shared` 下的隔离目录。

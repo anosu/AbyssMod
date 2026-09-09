@@ -6,3 +6,4 @@ artifacts/
 shared/
 SharedDependencies.local.props
 Build.local.props
+*.local.slnx
