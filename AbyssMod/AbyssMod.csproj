@@ -9,7 +9,8 @@
     <TargetFramework>net6.0</TargetFramework>
     <AssemblyName>AbyssMod</AssemblyName>
     <Product>AbyssMod</Product>
-    <Version>1.1.1</Version>
+    <Version>1.1.2</Version>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>latest</LangVersion>
     <RestoreAdditionalProjectSources>
       https://api.nuget.org/v3/index.json;

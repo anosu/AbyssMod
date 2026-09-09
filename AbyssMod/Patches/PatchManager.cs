@@ -19,6 +19,8 @@ public static class PatchManager
 
         _harmony = new Harmony(MyPluginInfo.PLUGIN_GUID);
         _harmony.PatchAll(typeof(EnhancePatch));
+        if (Plugin.Images?.Enabled == true)
+            _harmony.PatchAll(typeof(ImageReplacementPatch));
         if (Config.TranslationEnabledAtStartup)
         {
             _harmony.PatchAll(typeof(MasterDataPatch));

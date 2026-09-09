@@ -17,13 +17,6 @@ internal sealed class MasterDataTranslator
 {
     private const string ModelNamespace = "Project.Master.NoaMessagePack.";
 
-    private static readonly HashSet<(string Table, string Field)> SealFields = new()
-    {
-        ("m_ability_details", "description"),
-        ("m_ability_details", "awake_description"),
-        ("m_character_action_skills", "description"),
-    };
-
     private static readonly MethodInfo CastMethod = typeof(IMasterLoadResult)
         .GetMethods(BindingFlags.Instance | BindingFlags.Public)
         .Single(method =>
@@ -51,9 +44,12 @@ internal sealed class MasterDataTranslator
         {
             try
             {
-                var translator = CreateTableTranslator(tableName, fields);
-                if (translator != null)
-                    translators[translator.CacheTypeName] = translator;
+                foreach (string className in GetClassNames(tableName))
+                {
+                    var translator = CreateTableTranslator(tableName, className, fields);
+                    if (translator != null)
+                        translators[translator.CacheTypeName] = translator;
+                }
             }
             catch (Exception e)
             {
@@ -99,11 +95,12 @@ internal sealed class MasterDataTranslator
 
     private static TableTranslator CreateTableTranslator(
         string tableName,
+        string className,
         Dictionary<string, Dictionary<string, string>> fields
     )
     {
         var rowType = typeof(MasterDataStore).Assembly.GetType(
-            ModelNamespace + ToClassName(tableName),
+            ModelNamespace + className,
             throwOnError: false
         );
         if (rowType == null)
@@ -139,8 +136,7 @@ internal sealed class MasterDataTranslator
                     CreateFieldBinding(
                         rowType,
                         property,
-                        translations,
-                        SealFields.Contains((tableName, fieldName))
+                        translations
                     )
                 );
             }
@@ -174,8 +170,7 @@ internal sealed class MasterDataTranslator
     private static FieldBinding CreateFieldBinding(
         Type rowType,
         PropertyInfo property,
-        Dictionary<string, string> translations,
-        bool normalizeSealNames
+        Dictionary<string, string> translations
     )
     {
         var row = Expression.Parameter(typeof(object), "row");
@@ -190,7 +185,7 @@ internal sealed class MasterDataTranslator
         return new FieldBinding(
             get,
             set,
-            normalizeSealNames ? NormalizeTranslations(translations) : translations
+            translations
         );
     }
 
@@ -216,20 +211,12 @@ internal sealed class MasterDataTranslator
         return result.ToString();
     }
 
-    private static string NormalizeTranslation(string text) =>
-        text.Replace("纹章：冲击", "紋章：衝撃", StringComparison.Ordinal)
-            .Replace("纹章：热情", "紋章：情熱", StringComparison.Ordinal);
-
-    private static IReadOnlyDictionary<string, string> NormalizeTranslations(
-        Dictionary<string, string> translations
-    )
+    private static IEnumerable<string> GetClassNames(string tableName)
     {
-        var normalized = new Dictionary<string, string>(translations.Count, StringComparer.Ordinal);
-        foreach (var (source, translated) in translations)
-            normalized[source] = string.IsNullOrEmpty(translated)
-                ? translated
-                : NormalizeTranslation(translated);
-        return normalized;
+        yield return ToClassName(tableName);
+        // The game also caches this table under the singular row type.
+        if (tableName == "m_description_text_colors")
+            yield return "MDescriptionTextColor";
     }
 
     private static Exception Unwrap(Exception exception) =>

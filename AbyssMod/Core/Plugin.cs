@@ -28,6 +28,7 @@ public class Plugin : BasePlugin
     public static ConfigFile ConfigFile;
     public static MonoBehaviour Instance;
     public static TranslationManager Trans;
+    public static ImageReplacementManager Images;
     private static HttpClient _httpClient;
 
     public override void Load()
@@ -53,6 +54,7 @@ public class Plugin : BasePlugin
         Instance = AddComponent<Hotkey>();
 
         Initialize();
+        InitializeImageReplacements(_httpClient);
         Trans.Initialize();
         PatchManager.Initialize();
 
@@ -60,6 +62,7 @@ public class Plugin : BasePlugin
             MyPluginInfo.PLUGIN_NAME,
             $"Mod 加载成功，版本: {MyPluginInfo.PLUGIN_VERSION}"
         );
+        _ = UpdateChecker.CheckAsync(_httpClient, MyPluginInfo.PLUGIN_VERSION);
     }
 
     private static void Initialize()
@@ -96,6 +99,25 @@ public class Plugin : BasePlugin
         );
     }
 
+    private static void InitializeImageReplacements(HttpClient httpClient)
+    {
+        string replacementRoot = Path.Combine(
+            Paths.PluginPath,
+            MyPluginInfo.PLUGIN_GUID,
+            "cache",
+            "replacements"
+        );
+        var cache = new ImageReplacementCache(
+            AbyssMod.Config.TranslationCDN.Value,
+            AbyssMod.Config.TranslationLanguage.Value,
+            replacementRoot,
+            httpClient
+        );
+        cache.SyncAsync().GetAwaiter().GetResult();
+        Images = new ImageReplacementManager(replacementRoot);
+        Images.Initialize();
+    }
+
     private static string ResolvePluginPath(string path) =>
         Path.IsPathRooted(path) ? path : Path.Combine(Paths.PluginPath, path);
 
@@ -103,6 +125,8 @@ public class Plugin : BasePlugin
     {
         EnhancePatch.FlushNovelLive2DScale();
         PatchManager.Shutdown();
+        Images?.Dispose();
+        Images = null;
         _httpClient?.Dispose();
         Toast.Clear();
         return base.Unload();

@@ -9,8 +9,6 @@ using Utility.Notifications;
 
 namespace AbyssMod.Services;
 
-using UiTranslationTable = Dictionary<string, Dictionary<string, string>>;
-
 /// <summary>
 /// 翻译协调层：持有所有运行时翻译数据，提供统一查询入口。
 /// </summary>
@@ -26,7 +24,7 @@ public class TranslationManager
     private readonly ConcurrentDictionary<string, Task> _loadingNovels = new();
 
     private volatile Dictionary<string, string> _names;
-    private volatile UiTranslationTable _uiTexts;
+    private volatile UiTextIndex _uiTexts;
 
     private readonly ConcurrentDictionary<string, Dictionary<string, string>> _novels = new();
 
@@ -119,9 +117,12 @@ public class TranslationManager
 
         if (uiTextsTask != null)
         {
-            _uiTexts = await uiTextsTask;
-            if (_uiTexts != null)
-                Logger.Info($"Static translation loaded [ui_texts]. Paths: {_uiTexts.Count}");
+            var uiTexts = await uiTextsTask;
+            if (uiTexts != null)
+            {
+                _uiTexts = new UiTextIndex(uiTexts);
+                Logger.Info($"Static translation loaded [ui_texts]. Paths: {uiTexts.Count}");
+            }
             else
                 Logger.Warn("Static translation load failed [ui_texts]");
         }
@@ -144,17 +145,8 @@ public class TranslationManager
 
     public string TranslateUiText(string path, string sourceText)
     {
-        if (
-            string.IsNullOrEmpty(path)
-            || string.IsNullOrEmpty(sourceText)
-            || _uiTexts == null
-            || !_uiTexts.TryGetValue(path, out var translations)
-        )
-            return sourceText;
-
-        return
-            translations.TryGetValue(sourceText, out var translated)
-            && !string.IsNullOrEmpty(translated)
+        var index = _uiTexts;
+        return index != null && index.TryTranslate(path, sourceText, out string translated)
             ? translated
             : sourceText;
     }
