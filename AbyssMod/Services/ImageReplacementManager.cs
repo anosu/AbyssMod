@@ -6,17 +6,15 @@ using System.Text.Json;
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using UnityEngine;
 using UnityEngine.UI;
+using static AbyssMod.Services.ImageReplacementLimits;
 
 namespace AbyssMod.Services;
 
 /// <summary>加载本地图片，并按 manifest 规则为游戏 Sprite 创建替代对象。</summary>
 public sealed class ImageReplacementManager : IDisposable
 {
-    private const int SupportedManifestVersion = 1;
     private const int MaxImageDimension = 8192;
     private const long MaxImagePixels = 16L * 1024 * 1024;
-    private const long MaxManifestBytes = 1024 * 1024;
-    private const long MaxImageBytes = 64L * 1024 * 1024;
     private readonly string _replacementRoot;
     private readonly string _manifestPath;
     private readonly Dictionary<string, string> _novelBackgrounds = new(StringComparer.Ordinal);

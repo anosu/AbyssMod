@@ -17,7 +17,7 @@ using NovelLogList = Il2CppSystem.Collections.Generic.List<NovelLogData>;
 using TranslationTable = Dictionary<string, string>;
 
 /// <summary>
-/// 剧情与 UI 文本翻译补丁：覆盖标题、人名、对话及所有 TMP 文本。
+/// 剧情翻译补丁：覆盖剧情人名、对话及日志，独立于 UI 翻译开关。
 /// </summary>
 [HarmonyPatch]
 public static class TranslationPatch

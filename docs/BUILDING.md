@@ -39,6 +39,8 @@ CI 忽略两个本地配置文件；在构建命令中显式传入 `-p:GameDir=.
 
 保留原有输出位置：`$(GameDir)/BepInEx/plugins/AbyssMod/<Configuration>/net6.0/`。其中包含 Mod 和本次编译的 Utility DLL。
 
+更新游戏中的 DLL 前先正常退出游戏，避免文件占用。部署时同时更新 `AbyssMod.dll` 和配套的 `Utility.dll`，并确认 `BepInEx/plugins` 下只有一份有效的 `AbyssMod.dll`，不要同时在插件根目录和构建子目录保留两份。旧版本备份应放在游戏插件目录之外。
+
 验证构建而不写入游戏目录时：
 
 ```powershell
@@ -75,6 +77,8 @@ dotnet test tests/AbyssMod.Tests/AbyssMod.Tests.csproj -c Release
 ## Visual Studio
 
 标准解决方案已包含固定版本的 Utility 项目。在 VS 中打开标准解决方案时，不应用 `SharedDependencies.local.props` 的本地源码覆盖。
+
+解决方案会分别构建 `AbyssMod` 和 `Utility` 两个项目，并通过显式依赖保证先生成 `Utility`，再编译主插件；VS 的生成汇总因此会统计两项。`tests/AbyssMod.Tests` 不在该解决方案中，按上面的 `dotnet test` 命令单独运行。若出现「1 成功、1 失败」，请查看「输出 → 生成」中的具体错误，不能仅凭汇总判断失败原因。
 
 如果需要在 VS 中同时修改同级 Utility，先配置 `SharedDependencies.local.props`，然后在本仓库运行：
 

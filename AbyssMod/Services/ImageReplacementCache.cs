@@ -6,15 +6,13 @@ using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Threading.Tasks;
+using static AbyssMod.Services.ImageReplacementLimits;
 
 namespace AbyssMod.Services;
 
 /// <summary>从翻译 CDN 同步带哈希校验的图片替换文件到本地缓存。</summary>
 public sealed class ImageReplacementCache
 {
-    private const int SupportedManifestVersion = 1;
-    private const long MaxManifestBytes = 1024 * 1024;
-    private const long MaxImageBytes = 64L * 1024 * 1024;
     private const string RemoteDirectory = "replacements";
     private const string ReplacementManifestFile = "manifest.json";
 

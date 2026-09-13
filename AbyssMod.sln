@@ -4,6 +4,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 17.10.34928.147
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AbyssMod", "AbyssMod\AbyssMod.csproj", "{A5007B97-4846-411D-9DFF-51916085B5CD}"
+	ProjectSection(ProjectDependencies) = postProject
+		{527817A5-062C-45DD-8F2D-7C007065287A} = {527817A5-062C-45DD-8F2D-7C007065287A}
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "shared", "shared", "{4F52FD11-658E-A102-6CD3-7D7C16FFA15B}"
 EndProject

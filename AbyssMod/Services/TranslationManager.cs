@@ -54,7 +54,11 @@ public class TranslationManager
 
     public Task EnsureStaticTranslationsLoadedAsync()
     {
-        if (!Config.TranslationEnabledAtStartup && !Config.Translation.Value)
+        if (
+            !Config.MasterDataTranslationEnabledAtStartup
+            && !Config.UiTranslationEnabledAtStartup
+            && !Config.Translation.Value
+        )
             return Task.CompletedTask;
 
         lock (_loadLock)
@@ -75,9 +79,15 @@ public class TranslationManager
     {
         await _cache.FetchManifestAsync();
 
-        var bundleTask = _masterDataTranslator == null ? _cache.LoadStaticBundleAsync() : null;
+        var bundleTask =
+            Config.MasterDataTranslationEnabledAtStartup && _masterDataTranslator == null
+                ? _cache.LoadStaticBundleAsync()
+                : null;
         var namesTask = _names == null ? _cache.LoadAsync(TranslationPaths.Names) : null;
-        var uiTextsTask = _uiTexts == null ? _cache.LoadUiTextsAsync() : null;
+        var uiTextsTask =
+            Config.UiTranslationEnabledAtStartup && _uiTexts == null
+                ? _cache.LoadUiTextsAsync()
+                : null;
 
         if (bundleTask != null)
         {
@@ -128,7 +138,9 @@ public class TranslationManager
         }
 
         _staticTranslationsLoaded =
-            _masterDataTranslator != null && _names != null && _uiTexts != null;
+            _names != null
+            && (!Config.MasterDataTranslationEnabledAtStartup || _masterDataTranslator != null)
+            && (!Config.UiTranslationEnabledAtStartup || _uiTexts != null);
     }
 
     // ── 查询 API ────────────────────────────
@@ -165,7 +177,7 @@ public class TranslationManager
     )
     {
         var translator = _masterDataTranslator;
-        if (translator != null)
+        if (Config.MasterDataTranslationEnabledAtStartup && translator != null)
             return translator.TryTranslate(cacheType, result, out translatedEntries);
 
         translatedEntries = 0;

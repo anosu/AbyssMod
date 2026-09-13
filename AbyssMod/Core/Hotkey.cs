@@ -1,16 +1,37 @@
 using AbyssMod.Patches;
+using AbyssMod.Services;
+using AbyssMod.UI;
 using UnityEngine;
 
 namespace AbyssMod;
 
 /// <summary>
-/// 快捷键处理（MonoBehaviour）。F8 切换翻译、F9 切换语音中断、F10 重载配置。
+/// F10 打开设置菜单；可选兼容快捷键 F6/F8/F9 仅在菜单关闭时启用。
 /// </summary>
 public class Hotkey : MonoBehaviour
 {
     private void Update()
     {
+        MenuMouseIsolation.Update();
+        MenuGameInputGuard.Update();
+        if (Input.GetKeyDown(KeyCode.F10))
+        {
+            SettingsMenuController.Toggle();
+            return;
+        }
+        if (MenuMouseIsolation.BlocksGame)
+        {
+            if (MenuMouseIsolation.IsOpen && Input.GetKeyDown(KeyCode.Escape))
+                SettingsMenuController.RequestClose();
+            return;
+        }
+
         EnhancePatch.UpdateNovelLive2DScale();
+        if (!Config.LegacyHotkeys.Value)
+            return;
+
+        if (Input.GetKeyDown(KeyCode.F6))
+            NovelStageVolumeController.Toggle();
 
         if (Input.GetKeyDown(KeyCode.F8))
         {
@@ -20,15 +41,11 @@ public class Hotkey : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.F9))
             Config.VoiceInterruption.Value = !Config.VoiceInterruption.Value;
+    }
 
-        if (Input.GetKeyDown(KeyCode.F10))
-        {
-            Plugin.ConfigFile.Reload();
-            EnhancePatch.ReloadNovelLive2DScale();
-            TranslationPatch.RefreshCurrentMessage();
-            Logger.Info(
-                "Config reloaded; translation source, cache, and font changes require restart"
-            );
-        }
+    private void LateUpdate()
+    {
+        NovelStageVolumeController.Update();
+        SettingsMenuController.MaintainCursor();
     }
 }

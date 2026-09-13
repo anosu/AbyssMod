@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Text;
 using AbyssMod.Patches;
 using AbyssMod.Services;
+using AbyssMod.UI;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
@@ -52,9 +53,12 @@ public class Plugin : BasePlugin
         Toast.Initialize();
         AbyssMod.Config.Initialize();
         Instance = AddComponent<Hotkey>();
+        NovelStageVolumeController.Initialize();
+        SettingsMenuController.Initialize(Instance.transform);
 
         Initialize();
-        InitializeImageReplacements(_httpClient);
+        if (AbyssMod.Config.UiTranslationEnabledAtStartup)
+            InitializeImageReplacements(_httpClient);
         Trans.Initialize();
         PatchManager.Initialize();
 
@@ -125,7 +129,9 @@ public class Plugin : BasePlugin
 
     public override bool Unload()
     {
+        SettingsMenuController.Shutdown();
         EnhancePatch.FlushNovelLive2DScale();
+        NovelStageVolumeController.Shutdown();
         PatchManager.Shutdown();
         Images?.Dispose();
         Images = null;

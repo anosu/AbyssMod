@@ -19,13 +19,20 @@ public static class PatchManager
 
         _harmony = new Harmony(MyPluginInfo.PLUGIN_GUID);
         _harmony.PatchAll(typeof(EnhancePatch));
-        if (Plugin.Images?.Enabled == true)
-            _harmony.PatchAll(typeof(ImageReplacementPatch));
-        if (Config.TranslationEnabledAtStartup)
+        _harmony.PatchAll(typeof(SettingsMenuInputPatch));
+        // Do not patch UnityEngine.Input (or its UI bypass hooks) on this IL2CPP build.
+        // GetKeyDownInt's generated original re-enters the detour and stack-overflows
+        // on the very first Hotkey.Update, even while the settings menu is closed.
+        // Only game-level handlers and raycast filtering are enabled here.
+        _harmony.PatchAll(typeof(SettingsMenuRaycastPatch));
+        if (Config.UiTranslationEnabledAtStartup)
         {
-            _harmony.PatchAll(typeof(MasterDataPatch));
+            if (Plugin.Images?.Enabled == true)
+                _harmony.PatchAll(typeof(ImageReplacementPatch));
             _harmony.PatchAll(typeof(UiTranslationPatch));
         }
+        if (Config.MasterDataTranslationEnabledAtStartup)
+            _harmony.PatchAll(typeof(MasterDataPatch));
         _harmony.PatchAll(typeof(TranslationPatch));
 #if DEBUG
         _harmony.PatchAll(typeof(DebugPatch));

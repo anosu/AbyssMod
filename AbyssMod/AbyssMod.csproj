@@ -22,12 +22,7 @@
         <ProduceReferenceAssembly>True</ProduceReferenceAssembly>
     </PropertyGroup>
 
-    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-        <DebugType>none</DebugType>
-        <GenerateAssemblyInfo>True</GenerateAssemblyInfo>
-    </PropertyGroup>
-
-    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <PropertyGroup Condition="'$(Platform)' == 'AnyCPU' and ('$(Configuration)' == 'Debug' or '$(Configuration)' == 'Release')">
         <DebugType>none</DebugType>
         <GenerateAssemblyInfo>True</GenerateAssemblyInfo>
     </PropertyGroup>
