@@ -1,3 +1,4 @@
 <Project>
+
     <Import Project="$(ModRepositoryRoot)shared/ModEngineering/build/SharedDependencies.props" />
 </Project>

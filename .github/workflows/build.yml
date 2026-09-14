@@ -11,7 +11,6 @@ concurrency:
   cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 jobs:
   build:
-    uses: anosu/ModEngineering/.github/workflows/consumer.yml@0b038f40808e29dcd31c2de5df14f2f37953ca34
+    uses: anosu/ModEngineering/.github/workflows/consumer.yml@350e407a5aca296a47b7a5935e884fce77c6ea5c
     with:
       kind: pc
-      extension: false

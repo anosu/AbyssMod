@@ -18,7 +18,7 @@ python shared/ModEngineering/scripts/mod.py build --configuration Release
 
 ## 本地共享源码联调
 
-标准方案包含仓库固定的共享项目。需要编辑同级 Utility/Extension 时，将 `SharedDependencies.local.props.example` 复制为忽略 Git 的 `SharedDependencies.local.props`，调整路径后运行：
+标准方案包含仓库固定的共享项目。需要编辑同级 Utility 时，将 `SharedDependencies.local.props.example` 复制为忽略 Git 的 `SharedDependencies.local.props`，调整路径后运行：
 
 ```sh
 python shared/ModEngineering/scripts/mod.py solution --local
@@ -30,7 +30,7 @@ python shared/ModEngineering/scripts/mod.py solution --local
 
 `mod.json` 是项目工程清单，声明平台、项目、测试及发行文件。重复构建逻辑来自固定的 ModEngineering 子模块。生成文件改动应在公共实现或清单中完成，然后执行 `mod.py sync`；`mod.py check` 检测漂移和格式问题。
 
-更新工程用 `mod.py update --revision <commit>`，更新运行库增加 `--dependency Utility` 或 `--dependency Extension`。更新后验证并提交子模块指针。标准 Android 的游戏公共改动先提交上游，Variant 通过 `git fetch upstream`、`git merge upstream/main` 合并，保留私有差异。
+更新工程用 `mod.py update --revision <commit>`，更新运行库增加 `--dependency Utility`。更新后验证并提交子模块指针。
 
 详见 [公共规范](../shared/ModEngineering/docs/CONVENTIONS.md)。
 
