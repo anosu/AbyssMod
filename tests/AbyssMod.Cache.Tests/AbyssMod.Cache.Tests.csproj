@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <IsPackable>false</IsPackable>
+        <IsTestProject>true</IsTestProject>
+    </PropertyGroup>
+    <ItemGroup>
+        <Compile
+            Include="../../shared/Utility/src/Utility/Caching/*.cs;../../shared/Utility/src/Utility/Cryptography/*.cs"
+            Link="Shared/%(Filename)%(Extension)"
+        />
+        <Compile
+            Include="../../src/AbyssMod/Services/TranslationCache.cs"
+            Link="Production/TranslationCache.cs"
+        />
+        <Compile
+            Include="../../src/AbyssMod/Services/TranslationPaths.cs"
+            Link="Production/TranslationPaths.cs"
+        />
+        <Compile Include="../../src/AbyssMod/Models/Manifest.cs" Link="Production/Manifest.cs" />
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+        <PackageReference Include="xunit" Version="2.9.2" />
+        <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" PrivateAssets="all" />
+    </ItemGroup>
+</Project>
