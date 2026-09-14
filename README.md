@@ -4,7 +4,7 @@
 
 本仓库适用于 **Windows 平台 DMM Game Player 端**
 
-开发环境、Utility 源码引用和代码格式化见 [构建说明](docs/BUILDING.md)。
+开发环境、Utility 源码引用和代码格式化见 [构建说明](https://github.com/anosu/ModEngineering/blob/main/docs/CONVENTIONS.md)。
 
 使用时如遇到问题请务必先阅读下面的[常见问题](#-常见问题)
 
@@ -188,6 +188,6 @@ MasterData 与 UI 翻译状态、翻译 CDN、语言、缓存目录、本地优�
 
 > 💬 有问题可以提交 [Issue](https://github.com/anosu/AbyssMod/issues) 或直接在 QQ 群里问
 
-## 统一工程入口
+## 开发
 
-源码已迁移到 `src/`，独立测试位于 `tests/`。构建、VS 联调和发布方式以 [docs/BUILDING.md](docs/BUILDING.md) 为准；项目差异配置在 `mod.json`，公共实现来自固定的 `shared/ModEngineering`。
+源码位于 `src/`，测试位于 `tests/`。项目配置由 `.csproj` 管理，依赖版本由 Git 子模块记录。构建、VS 联调和发布命令见[公共工程说明](https://github.com/anosu/ModEngineering/blob/main/docs/CONVENTIONS.md)。

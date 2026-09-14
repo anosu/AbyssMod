@@ -1,6 +1,0 @@
-<Solution>
-    <Project Path="src/AbyssMod/AbyssMod.csproj" />
-    <Project Path="tests/AbyssMod.Tests/AbyssMod.Tests.csproj" />
-    <Project Path="tests/AbyssMod.Cache.Tests/AbyssMod.Cache.Tests.csproj" />
-    <Project Path="../Utility/src/Utility/Utility.csproj" />
-</Solution>

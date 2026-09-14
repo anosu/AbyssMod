@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
-    <Import Project="$(ModRepositoryRoot)build/PcBuild.props" />
-    <Import Project="$(ModRepositoryRoot)build/SharedDependencies.props" />
+    <Import Project="$(ModRepositoryRoot)shared/ModEngineering/build/PcBuild.props" />
+    <Import Project="$(ModRepositoryRoot)shared/ModEngineering/build/SharedDependencies.props" />
     <PropertyGroup>
+        <ModPlatform>pc</ModPlatform>
         <Authors>Jitsu</Authors>
     </PropertyGroup>
 

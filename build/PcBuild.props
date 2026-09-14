@@ -1,3 +1,0 @@
-<Project>
-    <Import Project="$(ModRepositoryRoot)shared/ModEngineering/build/PcBuild.props" />
-</Project>
