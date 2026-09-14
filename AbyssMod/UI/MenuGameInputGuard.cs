@@ -5,7 +5,11 @@ using UObject = UnityEngine.Object;
 
 namespace AbyssMod.UI;
 
-/// <summary>暂时暂停游戏的剧情输入组件，不禁用菜单自己的 ScrollRect / InputField。</summary>
+/// <summary>
+/// 暂时暂停游戏的剧情输入组件，不禁用菜单自己的 ScrollRect / InputField。
+/// 不要再给 NovelInputComponent 的长按检查方法加 Harmony 补丁：这些 IL2CPP 热路径
+/// 通过原生委托尾调用，运行原方法的 Harmony 跳板会在持续按压时使游戏崩溃。
+/// </summary>
 internal static class MenuGameInputGuard
 {
     private static readonly List<(NovelInputComponent Input, bool WasInteractable)> _inputs = new();
