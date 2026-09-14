@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "repository": "AbyssMod",
+  "github": "anosu/AbyssMod",
+  "kind": "pc",
+  "assembly": "AbyssMod",
+  "project": "src/AbyssMod/AbyssMod.csproj",
+  "tests": [
+    "tests/AbyssMod.Tests/AbyssMod.Tests.csproj"
+  ],
+  "useExtension": false,
+  "deployDirectory": "BepInEx/plugins/AbyssMod/{configuration}/net6.0",
+  "engineeringRevision": "0b038f40808e29dcd31c2de5df14f2f37953ca34"
+}

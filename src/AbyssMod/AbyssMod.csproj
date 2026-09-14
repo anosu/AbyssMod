@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
-    <Import Project="../build/PcBuild.props" />
-    <Import Project="../build/SharedDependencies.props" />
+    <Import Project="$(ModRepositoryRoot)build/PcBuild.props" />
+    <Import Project="$(ModRepositoryRoot)build/SharedDependencies.props" />
     <PropertyGroup>
         <Authors>Jitsu</Authors>
     </PropertyGroup>
@@ -18,7 +18,6 @@
       https://nuget.samboy.dev/v3/index.json
     </RestoreAdditionalProjectSources>
         <RootNamespace>AbyssMod</RootNamespace>
-        <BaseOutputPath>$(GameDir)\BepInEx\plugins\$(Product)</BaseOutputPath>
         <ProduceReferenceAssembly>True</ProduceReferenceAssembly>
     </PropertyGroup>
 
@@ -37,9 +36,9 @@
     <ItemGroup>
         <PackageReference
             Include="BepInEx.Unity.IL2CPP"
-            Version="6.0.0-be.*"
+            Version="$(BepInExVersion)"
             IncludeAssets="compile"
         />
-        <PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" />
+        <PackageReference Include="BepInEx.PluginInfoProps" Version="$(BepInExPluginInfoVersion)" />
     </ItemGroup>
 </Project>

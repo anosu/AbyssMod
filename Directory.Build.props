@@ -1,0 +1,6 @@
+<Project>
+    <PropertyGroup>
+        <ModRepositoryRoot>$(MSBuildThisFileDirectory)</ModRepositoryRoot>
+    </PropertyGroup>
+    <Import Project="$(ModRepositoryRoot)shared/ModEngineering/build/Mod.props" />
+</Project>

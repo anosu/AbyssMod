@@ -187,3 +187,7 @@ MasterData 与 UI 翻译状态、翻译 CDN、语言、缓存目录、本地优�
 ---
 
 > 💬 有问题可以提交 [Issue](https://github.com/anosu/AbyssMod/issues) 或直接在 QQ 群里问
+
+## 统一工程入口
+
+源码已迁移到 `src/`，独立测试位于 `tests/`。构建、VS 联调和发布方式以 [docs/BUILDING.md](docs/BUILDING.md) 为准；项目差异配置在 `mod.json`，公共实现来自固定的 `shared/ModEngineering`。

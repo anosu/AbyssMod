@@ -1,22 +1,3 @@
 <Project>
-    <PropertyGroup>
-        <ModRepositoryRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..'))/</ModRepositoryRoot>
-    </PropertyGroup>
-    <Import
-        Project="$(ModRepositoryRoot)SharedDependencies.local.props"
-        Condition="'$(CI)' != 'true' and '$(GITHUB_ACTIONS)' != 'true' and '$(UsePinnedSharedDependencies)' != 'true' and ('$(BuildingInsideVisualStudio)' != 'true' or $([System.String]::Copy('$(SolutionName)').EndsWith('.local'))) and Exists('$(ModRepositoryRoot)SharedDependencies.local.props')"
-    />
-    <PropertyGroup>
-        <UtilityProjectPath Condition="'$(UtilityProjectPath)' == ''"
-            >$(ModRepositoryRoot)shared/Utility/Utility/Utility.csproj</UtilityProjectPath>
-        <SharedBuildTargetsPath>$([System.IO.Path]::GetDirectoryName('$(UtilityProjectPath)'))/../build/Mod.Shared.targets</SharedBuildTargetsPath>
-    </PropertyGroup>
-    <Import Project="$(SharedBuildTargetsPath)" Condition="Exists('$(SharedBuildTargetsPath)')" />
-    <Target
-        Name="ValidateSharedBootstrap"
-        BeforeTargets="CollectPackageReferences;PrepareForBuild"
-        Condition="!Exists('$(SharedBuildTargetsPath)')"
-    >
-        <Error Text="Shared source is missing. Run git submodule update --init --recursive, or configure SharedDependencies.local.props." />
-    </Target>
+    <Import Project="$(ModRepositoryRoot)shared/ModEngineering/build/SharedDependencies.props" />
 </Project>

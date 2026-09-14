@@ -6,11 +6,11 @@
     </PropertyGroup>
     <ItemGroup>
         <Compile
-            Include="../../AbyssMod/Services/MasterDataTranslator.cs"
+            Include="../../src/AbyssMod/Services/MasterDataTranslator.cs"
             Link="Production/MasterDataTranslator.cs"
         />
         <Compile
-            Include="../../AbyssMod/Services/UiTextIndex.cs"
+            Include="../../src/AbyssMod/Services/UiTextIndex.cs"
             Link="Production/UiTextIndex.cs"
         />
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />

@@ -1,6 +1,9 @@
 * text=auto eol=lf
 
 *.dll binary
+*.dex binary
 *.pdb binary
+*.mdb binary
 *.7z binary
 *.zip binary
+dependencies/font/* binary

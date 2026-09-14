@@ -1,3 +1,6 @@
 [submodule "shared/Utility"]
 	path = shared/Utility
 	url = https://github.com/anosu/Utility.git
+[submodule "shared/ModEngineering"]
+	path = shared/ModEngineering
+	url = https://github.com/anosu/ModEngineering.git

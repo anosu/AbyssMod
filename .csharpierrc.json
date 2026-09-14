@@ -1,6 +1,5 @@
 {
-  "printWidth": 100,
-  "useTabs": false,
   "indentSize": 4,
+  "width": 100,
   "endOfLine": "lf"
 }

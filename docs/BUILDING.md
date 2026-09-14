@@ -1,91 +1,41 @@
-# 构建 AbyssMod（PC）
+# 构建与工程维护
 
-本项目使用 Windows 版 BepInEx IL2CPP。需要 .NET 8 或更新的 SDK，以及对应 PC 游戏由 BepInEx 生成的 interop DLL；游戏启动仍使用 BepInEx 自带的 .NET 6 运行时。
+项目入口：`src/AbyssMod/AbyssMod.csproj`。标准方案：`AbyssMod.slnx`。
 
-## 首次配置
+## 准备
 
-```powershell
-git clone --recurse-submodules https://github.com/anosu/AbyssMod.git
-cd AbyssMod
-Copy-Item Build.local.props.example Build.local.props
-dotnet tool restore
+安装 global.json 指定的 .NET SDK、.NET 8 测试运行时、Python 3.10+、PowerShell 7。VS 使用 2022 17.14 或更新版本。
+
+```sh
+git submodule update --init --recursive
+python shared/ModEngineering/scripts/mod.py check
+python shared/ModEngineering/scripts/mod.py test
+python shared/ModEngineering/scripts/mod.py build --configuration Debug
+python shared/ModEngineering/scripts/mod.py build --configuration Release
 ```
 
-在 `Build.local.props` 中填写 `GameDir`。先通过 BepInEx 启动一次游戏，确保生成 `BepInEx/interop`；也可以设置 `GameInteropDir` 指向单独保存的 **PC** interop 目录。完整游戏 DLL 不进入 Git。
+引用只使用游戏/加载器必要 DLL；具体资源和游戏差异见 [dependencies](../dependencies/README.md)（若项目未提供该文件，以项目的 Reference 声明为准）。完整游戏导出和本机路径不提交。
 
-## 共享源码
+## 本地共享源码联调
 
-默认使用 `shared/Utility` 子模块中固定提交的源码，通过 `ProjectReference` 编译并复制 `Utility.dll`。PC 项目不依赖 Android Extension。
+标准方案包含仓库固定的共享项目。需要编辑同级 Utility/Extension 时，将 `SharedDependencies.local.props.example` 复制为忽略 Git 的 `SharedDependencies.local.props`，调整路径后运行：
 
-本地同时开发 Utility 时，执行：
-
-```powershell
-Copy-Item SharedDependencies.local.props.example SharedDependencies.local.props
+```sh
+python shared/ModEngineering/scripts/mod.py solution --local
 ```
 
-示例指向同级的 `../Utility/Utility/Utility.csproj`，可按实际路径修改。之后修改 Utility 直接重新构建 Mod 即可，无需手动复制 DLL。两个 `*.local.props` 文件都忽略 Git 追踪。
+打开生成的 `AbyssMod.local.slnx`。已有本地覆盖不应被模板覆盖。CI 和 `UsePinnedSharedDependencies=true` 总是使用固定源码；标准 VS 方案也忽略本地覆盖。无需复制共享 DLL。
 
-```powershell
-dotnet build AbyssMod/AbyssMod.csproj -c Release
-# 忽略本地 Utility 源码覆盖，验证仓库中固定的依赖版本
-dotnet build AbyssMod/AbyssMod.csproj -c Release -p:UsePinnedSharedDependencies=true
-```
+## 规范与升级
 
-CI 忽略两个本地配置文件；在构建命令中显式传入 `-p:GameDir=...` 和必要的 `-p:GameInteropDir=...`。Utility 编译使用其仓库自带的最小 Unity 编译依赖，运行时使用游戏的 BepInEx interop。
+`mod.json` 是项目工程清单，声明平台、项目、测试及发行文件。重复构建逻辑来自固定的 ModEngineering 子模块。生成文件改动应在公共实现或清单中完成，然后执行 `mod.py sync`；`mod.py check` 检测漂移和格式问题。
 
-共享库中间文件和输出隔离在本仓库 `artifacts/shared/local` 或 `artifacts/shared/pinned`，不会与其他 Mod 同时构建冲突。
+更新工程用 `mod.py update --revision <commit>`，更新运行库增加 `--dependency Utility` 或 `--dependency Extension`。更新后验证并提交子模块指针。标准 Android 的游戏公共改动先提交上游，Variant 通过 `git fetch upstream`、`git merge upstream/main` 合并，保留私有差异。
 
-## 输出与发布
+详见 [公共规范](../shared/ModEngineering/docs/CONVENTIONS.md)。
 
-保留原有输出位置：`$(GameDir)/BepInEx/plugins/AbyssMod/<Configuration>/net6.0/`。其中包含 Mod 和本次编译的 Utility DLL。
+## PC 构建与部署
 
-更新游戏中的 DLL 前先正常退出游戏，避免文件占用。部署时同时更新 `AbyssMod.dll` 和配套的 `Utility.dll`，并确认 `BepInEx/plugins` 下只有一份有效的 `AbyssMod.dll`，不要同时在插件根目录和构建子目录保留两份。旧版本备份应放在游戏插件目录之外。
+将 Build.local.props.example 复制为 Build.local.props，填写 GameInteropDir 或 GameDir。纯编译只需 PC interop，默认输出 artifacts/bin/<项目>/<配置>/；不会写入游戏目录。
 
-验证构建而不写入游戏目录时：
-
-```powershell
-dotnet build AbyssMod/AbyssMod.csproj -c Release -p:BaseOutputPath=../artifacts/build-check/
-```
-
-发布内容、字体资源、BepInEx 文件和打包方式继续由本项目单独维护。GitHub Actions 仅检查格式并运行不依赖游戏的翻译测试，不打包或发布，也不在云端下载游戏文件。
-
-## 更新共享库版本
-
-先在 Utility 仓库提交并推送修改，然后在本仓库更新固定提交：
-
-```powershell
-git -C shared/Utility fetch origin
-git -C shared/Utility checkout <Utility提交SHA>
-git add shared/Utility
-git commit -m "Update Utility"
-git push
-```
-
-协作者拉取后执行 `git submodule update --init --recursive`。仅修改本地覆盖路径不会更新仓库固定版本。
-
-## 格式化
-
-三个 PC 项目统一使用 CSharpier 1.3.0：4 空格、100 列、LF 换行。子模块、依赖 DLL、构建产物和本地配置不参与格式化。
-
-```powershell
-dotnet tool restore
-dotnet csharpier format .
-dotnet csharpier check .
-dotnet test tests/AbyssMod.Tests/AbyssMod.Tests.csproj -c Release
-```
-
-## Visual Studio
-
-标准解决方案已包含固定版本的 Utility 项目。在 VS 中打开标准解决方案时，不应用 `SharedDependencies.local.props` 的本地源码覆盖。
-
-解决方案会分别构建 `AbyssMod` 和 `Utility` 两个项目，并通过显式依赖保证先生成 `Utility`，再编译主插件；VS 的生成汇总因此会统计两项。`tests/AbyssMod.Tests` 不在该解决方案中，按上面的 `dotnet test` 命令单独运行。若出现「1 成功、1 失败」，请查看「输出 → 生成」中的具体错误，不能仅凭汇总判断失败原因。
-
-如果需要在 VS 中同时修改同级 Utility，先配置 `SharedDependencies.local.props`，然后在本仓库运行：
-
-```powershell
-pwsh -NoProfile -File shared/Utility/scripts/New-ModSolution.ps1 -Project AbyssMod/AbyssMod.csproj
-```
-
-打开生成的 `AbyssMod.local.slnx`（需要 VS 2022 17.14 或更新版本）。它包含实际引用的共享项目，忽略 Git 追踪；修改共享项目路径后重新运行该命令。不要只向标准解决方案添加本机路径后提交。
-
-VS 使用共享项目自身的 `bin` / `obj` 输出，以保证解决方案构建和项目引用查找一致；命令行项目构建继续使用本仓库 `artifacts/shared` 下的隔离目录。
+需要安装到本机游戏时运行 `scripts/deploy.ps1`，该命令构建并将 Mod/Utility DLL 复制到原有插件布局。字体、BepInEx 和其他安装资源仍按游戏文档管理。PC CI 检查规范和独立测试，不自动发布，也不依赖本机游戏进行完整编译。

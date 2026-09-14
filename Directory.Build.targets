@@ -1,0 +1,3 @@
+<Project>
+    <Import Project="$(MSBuildThisFileDirectory)shared/ModEngineering/build/Mod.targets" />
+</Project>
