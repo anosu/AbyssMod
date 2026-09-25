@@ -182,11 +182,10 @@ MasterData 与 UI 翻译状态、翻译 CDN、语言、缓存目录、本地优�
 
 ### 社群
 
-- QQ群：596397797 (最近举报狗多需录屏验证，介意勿加)
 
 ---
 
-> 💬 有问题可以提交 [Issue](https://github.com/anosu/AbyssMod/issues) 或直接在 QQ 群里问
+> 💬 有问题可以提交 [Issue](https://github.com/anosu/AbyssMod/issues).
 
 ## 开发
 
