@@ -20,7 +20,7 @@ using TranslationTable = Dictionary<string, string>;
 /// 剧情翻译补丁：覆盖剧情人名、对话及日志，独立于 UI 翻译开关。
 /// </summary>
 [HarmonyPatch]
-public static class TranslationPatch
+internal static class TranslationPatch
 {
     private const string UserPlaceholder = "<user>";
     private const string HiddenUserPlaceholder = "%user%";
@@ -130,6 +130,12 @@ public static class TranslationPatch
         _currentOriginalMessage = null;
         _currentTranslatedMessage = null;
         _refreshingCurrentMessage = false;
+    }
+
+    internal static void Reset()
+    {
+        _novelController = null;
+        ResetCurrentMessageState();
     }
 
     private static NovelViewMessageWindow GetMessageWindow()

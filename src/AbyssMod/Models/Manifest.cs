@@ -8,7 +8,7 @@ namespace AbyssMod;
 /// 翻译清单，对应远程 manifest.json。
 /// Extra 收纳所有未显式声明的文件哈希，新增翻译类型无需改本类。
 /// </summary>
-public class Manifest
+internal class Manifest
 {
     [JsonPropertyName("hash")]
     public string Hash { get; set; }

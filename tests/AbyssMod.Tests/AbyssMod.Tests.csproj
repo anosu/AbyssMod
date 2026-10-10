@@ -3,8 +3,43 @@
         <TargetFramework>net8.0</TargetFramework>
         <IsPackable>false</IsPackable>
         <IsTestProject>true</IsTestProject>
+        <RestoreAdditionalProjectSources>https://nuget.bepinex.dev/v3/index.json</RestoreAdditionalProjectSources>
     </PropertyGroup>
     <ItemGroup>
+        <Compile
+            Include="../../shared/Utility/src/Utility/Caching/*.cs;../../shared/Utility/src/Utility/Cryptography/*.cs"
+            Link="Shared/%(Filename)%(Extension)"
+        />
+        <Compile Include="../../src/AbyssMod/Models/Manifest.cs" Link="Production/Manifest.cs" />
+        <Compile
+            Include="../../src/AbyssMod/Services/TranslationCache.cs"
+            Link="Production/TranslationCache.cs"
+        />
+        <Compile
+            Include="../../src/AbyssMod/Services/TranslationManager.cs"
+            Link="Production/TranslationManager.cs"
+        />
+        <Compile Include="../../src/AbyssMod/Core/Config.cs" Link="Production/Config.cs" />
+        <Compile
+            Include="../../src/AbyssMod/Core/AcceptableResourceString.cs"
+            Link="Production/AcceptableResourceString.cs"
+        />
+        <Compile
+            Include="../../src/AbyssMod/Core/ConfigurationManagerAttributes.cs"
+            Link="Production/ConfigurationManagerAttributes.cs"
+        />
+        <Compile
+            Include="../../src/AbyssMod/Core/RuntimeController.cs"
+            Link="Production/RuntimeController.cs"
+        />
+        <Compile
+            Include="../../src/AbyssMod/Services/NovelLive2DScaleController.cs"
+            Link="Production/NovelLive2DScaleController.cs"
+        />
+        <Compile
+            Include="../../src/AbyssMod/Services/TranslationPaths.cs"
+            Link="Production/TranslationPaths.cs"
+        />
         <Compile
             Include="../../src/AbyssMod/Services/MasterDataTranslator.cs"
             Link="Production/MasterDataTranslator.cs"
@@ -14,6 +49,7 @@
             Link="Production/UiTextIndex.cs"
         />
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+        <PackageReference Include="BepInEx.Core" Version="$(BepInExVersion)" />
         <PackageReference Include="xunit" Version="2.9.2" />
         <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" PrivateAssets="all" />
     </ItemGroup>

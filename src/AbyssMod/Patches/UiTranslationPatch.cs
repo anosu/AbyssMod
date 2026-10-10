@@ -1,14 +1,13 @@
 using System;
-using System.Collections.Generic;
+using AbyssMod.Services;
 using HarmonyLib;
 using TMPro;
-using UnityEngine;
 
 namespace AbyssMod.Patches;
 
 /// <summary>翻译启动时创建及后续动态生成的 TMP UI 文本。</summary>
 [HarmonyPatch]
-public static class UiTranslationPatch
+internal static class UiTranslationPatch
 {
     private static bool _errorLogged;
 
@@ -17,7 +16,7 @@ public static class UiTranslationPatch
         if (Plugin.Trans == null || string.IsNullOrEmpty(source) || !Plugin.Trans.HasUiTranslations)
             return source;
 
-        return Plugin.Trans.TranslateUiText(GetTransformPath(text?.transform), source);
+        return Plugin.Trans.TranslateUiText(TransformPath.Build(text?.transform), source);
     }
 
     private static string TranslateSafely(TMP_Text text, string source)
@@ -35,17 +34,6 @@ public static class UiTranslationPatch
             }
             return source;
         }
-    }
-
-    private static string GetTransformPath(Transform transform)
-    {
-        if (transform == null)
-            return null;
-
-        var parts = new Stack<string>();
-        for (var current = transform; current != null; current = current.parent)
-            parts.Push(current.name);
-        return string.Join("/", parts);
     }
 
     [HarmonyPrefix, HarmonyPatch(typeof(TMP_Text), "set_text")]

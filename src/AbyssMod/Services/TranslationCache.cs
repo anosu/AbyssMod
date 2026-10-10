@@ -11,7 +11,7 @@ namespace AbyssMod.Services;
 
 using UiTranslationTable = Dictionary<string, Dictionary<string, string>>;
 
-public class TranslationCache
+internal sealed class TranslationCache
 {
     private readonly string _cdn;
     private readonly string _cacheDir;
@@ -33,11 +33,7 @@ public class TranslationCache
         _cacheDir = cacheDir;
         _language = language;
         _preferLocalFiles = preferLocalFiles;
-        _resources = new JsonResourceCache(
-            client,
-            message => Logger.Info(message),
-            message => Logger.Warn(message)
-        );
+        _resources = new JsonResourceCache(client, Logger.Info, Logger.Warn);
 
         Directory.CreateDirectory(_cacheDir);
     }
@@ -151,7 +147,7 @@ public class TranslationCache
     {
         if (dict == null)
             return null;
-        return ComputeMd5Hex(
+        return StringTableHash.ComputeEntries(
             dict.Keys.OrderBy(k => k, StringComparer.Ordinal)
                 .Select(k => ((string, string))(k, dict[k]))
         );
@@ -164,11 +160,11 @@ public class TranslationCache
         if (bundle == null)
             return null;
 
-        return ComputeMd5Hex(EnumerateBundleEntries(bundle));
+        return StringTableHash.ComputeEntries(EnumerateBundleEntries(bundle));
     }
 
     private static string GetUiTextHash(UiTranslationTable tables) =>
-        tables == null ? null : ComputeMd5Hex(EnumerateUiTextEntries(tables));
+        tables == null ? null : StringTableHash.ComputeEntries(EnumerateUiTextEntries(tables));
 
     private static IEnumerable<(string key, string value)> EnumerateUiTextEntries(
         UiTranslationTable tables
@@ -203,7 +199,4 @@ public class TranslationCache
             }
         }
     }
-
-    private static string ComputeMd5Hex(IEnumerable<(string key, string value)> entries) =>
-        StringTableHash.ComputeEntries(entries);
 }

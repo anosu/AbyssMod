@@ -8,23 +8,17 @@
 
     <PropertyGroup>
         <TargetFramework>net6.0</TargetFramework>
-        <AssemblyName>AbyssMod</AssemblyName>
-        <Product>AbyssMod</Product>
         <Version>1.1.3</Version>
-        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <LangVersion>latest</LangVersion>
         <RestoreAdditionalProjectSources>
       https://api.nuget.org/v3/index.json;
       https://nuget.bepinex.dev/v3/index.json;
       https://nuget.samboy.dev/v3/index.json
     </RestoreAdditionalProjectSources>
-        <RootNamespace>AbyssMod</RootNamespace>
-        <ProduceReferenceAssembly>True</ProduceReferenceAssembly>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(Platform)' == 'AnyCPU' and ('$(Configuration)' == 'Debug' or '$(Configuration)' == 'Release')">
         <DebugType>none</DebugType>
-        <GenerateAssemblyInfo>True</GenerateAssemblyInfo>
     </PropertyGroup>
 
     <ItemGroup>

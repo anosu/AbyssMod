@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 namespace AbyssMod;
 
 /// <summary>本地图片替换清单。</summary>
-public sealed class ImageReplacementManifest
+internal sealed class ImageReplacementManifest
 {
     [JsonPropertyName("version")]
     public int Version { get; set; } = 1;
@@ -19,7 +19,7 @@ public sealed class ImageReplacementManifest
     public List<UiImageReplacement> UiComponents { get; set; } = new();
 }
 
-public sealed class UiImageReplacement
+internal sealed class UiImageReplacement
 {
     [JsonPropertyName("transformPath")]
     public string TransformPath { get; set; }

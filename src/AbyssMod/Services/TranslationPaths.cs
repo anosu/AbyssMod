@@ -7,7 +7,7 @@ namespace AbyssMod.Services;
 /// 翻译资源路径构建工具。
 /// 负责生成远程 URL 和本地缓存路径。
 /// </summary>
-public static class TranslationPaths
+internal static class TranslationPaths
 {
     internal const string DefaultCacheDirectory = MyPluginInfo.PLUGIN_GUID + "/cache/translations";
 

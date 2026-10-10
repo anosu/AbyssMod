@@ -7,7 +7,7 @@ namespace AbyssMod.Services;
 
 /// <summary>
 /// 只控制剧情 Live2D 特效对象上的 PostProcessVolume，保留舞台 IngameStageVolume 的原始行为。
-/// 所有 Unity 对象访问都由插件生命周期和 Hotkey 在主线程上执行。
+/// 所有 Unity 对象访问都由插件生命周期和 RuntimeController 在主线程上执行。
 /// </summary>
 internal static class NovelStageVolumeController
 {
@@ -27,7 +27,8 @@ internal static class NovelStageVolumeController
             return;
 
         _initialized = true;
-        Reload();
+        DiscoverVolumes();
+        Apply();
     }
 
     internal static void Update()
@@ -38,24 +39,6 @@ internal static class NovelStageVolumeController
         // 定期重新查找，覆盖延迟创建、场景切换和同一场景内对象重建的情况。
         if (Time.unscaledTime >= _nextDiscoveryTime)
             DiscoverVolumes();
-        Apply();
-    }
-
-    internal static void Toggle()
-    {
-        if (!_initialized)
-            return;
-
-        Config.NovelStageVolume.Value = !Config.NovelStageVolume.Value;
-        Reload();
-    }
-
-    internal static void Reload()
-    {
-        if (!_initialized)
-            return;
-
-        DiscoverVolumes();
         Apply();
     }
 

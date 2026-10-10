@@ -3,9 +3,9 @@ using HarmonyLib;
 namespace AbyssMod.Patches;
 
 /// <summary>
-/// Harmony 补丁管理器。负责初始化所有子补丁类、提供共享工具方法。
+/// 按启动配置注册 Harmony 补丁，并统一解除补丁与清理状态。
 /// </summary>
-public static class PatchManager
+internal static class PatchManager
 {
     private static Harmony _harmony;
 
@@ -19,12 +19,6 @@ public static class PatchManager
 
         _harmony = new Harmony(MyPluginInfo.PLUGIN_GUID);
         _harmony.PatchAll(typeof(EnhancePatch));
-        _harmony.PatchAll(typeof(SettingsMenuInputPatch));
-        // Do not patch UnityEngine.Input (or its UI bypass hooks) on this IL2CPP build.
-        // GetKeyDownInt's generated original re-enters the detour and stack-overflows
-        // on the very first Hotkey.Update, even while the settings menu is closed.
-        // Only game-level handlers and raycast filtering are enabled here.
-        _harmony.PatchAll(typeof(SettingsMenuRaycastPatch));
         if (Config.UiTranslationEnabledAtStartup)
         {
             if (Plugin.Images?.Enabled == true)
@@ -44,5 +38,6 @@ public static class PatchManager
         _harmony?.UnpatchSelf();
         _harmony = null;
         MasterDataPatch.Reset();
+        TranslationPatch.Reset();
     }
 }

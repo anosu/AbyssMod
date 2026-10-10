@@ -16,23 +16,14 @@ namespace AbyssMod.Patches;
 /// 剧情正文脚本不在 masterdata 内，仍由 TranslationPatch 处理。
 /// </summary>
 [HarmonyPatch]
-public static class MasterDataPatch
+internal static class MasterDataPatch
 {
     private const string DownloadCallbackPrefix = "_DownloadFirstAsync_b__";
-    private const int SummaryIdleFrames = 60;
-
     private static readonly Dictionary<
         string,
         (Il2CppSystem.Type Type, IMasterLoadResult Result)
     > Pending = new(StringComparer.Ordinal);
-    private static readonly HashSet<string> ProcessedTables = new(StringComparer.Ordinal);
     private static bool _pendingTranslationRunning;
-    private static bool _summaryCoroutineRunning;
-    private static bool _summaryLogged;
-    private static int _summaryRevision;
-    private static int _summaryEpoch;
-    private static int _translatedTables;
-    private static int _translatedEntries;
 
     [HarmonyTargetMethod]
     private static MethodBase TargetMethod()
@@ -158,85 +149,11 @@ public static class MasterDataPatch
         if (!Plugin.Trans.TryTranslateMasterDataCache(type, result, out int translatedEntries))
             return;
 
-        string typeName = type.Name;
-        if (!ProcessedTables.Add(typeName))
-            return;
-
         if (translatedEntries > 0)
-        {
-            _translatedTables++;
-            _translatedEntries += translatedEntries;
-        }
-
-        int plannedTables = Plugin.Trans.MasterDataTranslationTableCount;
-        if (!_summaryLogged && plannedTables > 0 && ProcessedTables.Count >= plannedTables)
-            LogSummary(plannedTables);
-        else
-            ScheduleSummary();
-    }
-
-    private static void ScheduleSummary()
-    {
-        _summaryRevision++;
-        if (_summaryCoroutineRunning || _summaryLogged)
-            return;
-
-        _summaryCoroutineRunning = true;
-        try
-        {
-            Plugin.Instance.StartCoroutine(LogSummaryWhenIdle(_summaryEpoch).WrapToIl2Cpp());
-        }
-        catch
-        {
-            _summaryCoroutineRunning = false;
-            throw;
-        }
-    }
-
-    private static IEnumerator LogSummaryWhenIdle(int epoch)
-    {
-        try
-        {
-            while (!_summaryLogged && epoch == _summaryEpoch)
-            {
-                int revision = _summaryRevision;
-                for (int frame = 0; frame < SummaryIdleFrames; frame++)
-                    yield return null;
-
-                if (revision == _summaryRevision)
-                    LogSummary(Plugin.Trans.MasterDataTranslationTableCount);
-            }
-        }
-        finally
-        {
-            if (epoch == _summaryEpoch)
-                _summaryCoroutineRunning = false;
-        }
-    }
-
-    private static void LogSummary(int plannedTables)
-    {
-        _summaryLogged = true;
-        Logger.Info(
-            $"[MDT] MasterData translation summary. Planned: {plannedTables}, "
-                + $"Processed: {ProcessedTables.Count}, Translated: {_translatedTables}, "
-                + $"Entries: {_translatedEntries}"
-        );
+            Logger.Info($"[MDT] Translated {type.Name}: {translatedEntries} entries");
     }
 
     internal static void Reset()
-    {
-        ResetPending();
-        ProcessedTables.Clear();
-        _summaryEpoch++;
-        _summaryCoroutineRunning = false;
-        _summaryLogged = false;
-        _summaryRevision = 0;
-        _translatedTables = 0;
-        _translatedEntries = 0;
-    }
-
-    private static void ResetPending()
     {
         Pending.Clear();
         _pendingTranslationRunning = false;

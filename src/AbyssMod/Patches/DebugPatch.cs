@@ -9,7 +9,7 @@ using Project;
 namespace AbyssMod.Patches;
 
 [HarmonyPatch]
-public static class DebugPatch
+internal static class DebugPatch
 {
     private static bool IsOffline => Config.OfflineStartup || Config.Offline.Value;
 

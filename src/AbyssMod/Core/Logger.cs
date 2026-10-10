@@ -3,7 +3,7 @@ namespace AbyssMod;
 /// <summary>
 /// 统一日志封装，避免各处直接引用 Plugin.Log。
 /// </summary>
-public static class Logger
+internal static class Logger
 {
     public static void Info(string msg) => Plugin.Log.LogInfo(msg);
 

@@ -6,11 +6,10 @@ using System.Net.Http;
 using System.Text;
 using AbyssMod.Patches;
 using AbyssMod.Services;
-using AbyssMod.UI;
 using BepInEx;
-using BepInEx.Configuration;
 using BepInEx.Logging;
 using BepInEx.Unity.IL2CPP;
+using BepInEx.Unity.IL2CPP.Utils.Collections;
 using TMPro;
 using UnityEngine;
 using Utility.Assets;
@@ -25,12 +24,12 @@ public class Plugin : BasePlugin
     private const int PooledConnectionLifetimeMinutes = 5;
     private const int PooledConnectionIdleTimeoutMinutes = 2;
 
-    public static new ManualLogSource Log;
-    public static ConfigFile ConfigFile;
-    public static MonoBehaviour Instance;
-    public static TranslationManager Trans;
-    public static ImageReplacementManager Images;
+    internal static new ManualLogSource Log { get; private set; }
+    internal static MonoBehaviour Instance { get; private set; }
+    internal static TranslationManager Trans { get; private set; }
+    internal static ImageReplacementManager Images { get; private set; }
     private static HttpClient _httpClient;
+    private static HttpClient _translationHttpClient;
 
     public override void Load()
     {
@@ -47,19 +46,21 @@ public class Plugin : BasePlugin
 #endif
 
         Log = base.Log;
-        ConfigFile = base.Config;
         Log.LogInfo($"Plugin {MyPluginInfo.PLUGIN_GUID} is loaded!");
 
         Toast.Initialize();
-        AbyssMod.Config.Initialize();
-        Instance = AddComponent<Hotkey>();
+        AbyssMod.Config.Initialize(base.Config);
+        Instance = AddComponent<RuntimeController>();
         NovelStageVolumeController.Initialize();
-        SettingsMenuController.Initialize(Instance.transform);
 
-        Initialize();
+        _httpClient = CreateHttpClient(decryptTranslations: false);
+        _translationHttpClient = CreateHttpClient(decryptTranslations: true);
+        InitializeTranslation();
         if (AbyssMod.Config.UiTranslationEnabledAtStartup)
-            InitializeImageReplacements(_httpClient);
-        Trans.Initialize();
+            InitializeImageReplacements(_httpClient, _translationHttpClient);
+        InitializeFont();
+        if (AbyssMod.Config.Translation.Value || AbyssMod.Config.UiTranslationEnabledAtStartup)
+            _ = Trans.EnsureStaticTranslationsLoadedAsync();
         PatchManager.Initialize();
 
         Toast.Success(
@@ -69,7 +70,7 @@ public class Plugin : BasePlugin
         _ = UpdateChecker.CheckAsync(_httpClient, MyPluginInfo.PLUGIN_VERSION);
     }
 
-    private static void Initialize()
+    private static HttpClient CreateHttpClient(bool decryptTranslations)
     {
         var handler = new SocketsHttpHandler
         {
@@ -80,32 +81,81 @@ public class Plugin : BasePlugin
             PooledConnectionLifetime = TimeSpan.FromMinutes(PooledConnectionLifetimeMinutes),
             PooledConnectionIdleTimeout = TimeSpan.FromMinutes(PooledConnectionIdleTimeoutMinutes),
         };
-        _httpClient = new HttpClient(new CryptoHandler(handler))
+        HttpMessageHandler pipeline = decryptTranslations
+            ? new TranslationCryptoHandler(
+                handler,
+                () =>
+                    (
+                        AbyssMod.Config.TranslationCryptoTag.Value,
+                        AbyssMod.Config.TranslationCryptoKey.Value
+                    )
+            )
+            : handler;
+        var client = new HttpClient(pipeline)
         {
             Timeout = TimeSpan.FromSeconds(HttpTimeoutSeconds),
         };
-        _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(
+        client.DefaultRequestHeaders.UserAgent.ParseAdd(
             $"{MyPluginInfo.PLUGIN_GUID}/{MyPluginInfo.PLUGIN_VERSION}"
         );
 
+        return client;
+    }
+
+    private static void InitializeTranslation()
+    {
+        MigrateTranslationCache();
         string cacheDir = ResolvePluginPath(AbyssMod.Config.TranslationCacheDirectory.Value);
         var cache = new TranslationCache(
             AbyssMod.Config.TranslationCDN.Value,
             cacheDir,
             AbyssMod.Config.TranslationLanguage.Value,
             AbyssMod.Config.TranslationPreferLocalFiles.Value,
-            _httpClient
+            _translationHttpClient
         );
 
         Trans = new TranslationManager(
             cache,
-            new AssetBundleLoader<TMP_FontAsset>(
-                ResolvePluginPath(AbyssMod.Config.FontBundlePath.Value)
-            )
+            AbyssMod.Config.MasterDataTranslationEnabledAtStartup,
+            AbyssMod.Config.UiTranslationEnabledAtStartup
         );
     }
 
-    private static void InitializeImageReplacements(HttpClient httpClient)
+    private static void InitializeFont()
+    {
+        var font = new AssetBundleLoader<TMP_FontAsset>(
+            ResolvePluginPath(AbyssMod.Config.FontBundlePath.Value)
+        );
+        Instance.StartCoroutine(
+            font.Load(() =>
+                {
+                    Logger.Info($"Font loaded: {font.Asset.name}");
+                    TMP_Settings.fallbackFontAssets.Add(font.Asset);
+                })
+                .WrapToIl2Cpp()
+        );
+    }
+
+    private static void MigrateTranslationCache()
+    {
+        try
+        {
+            AbyssMod.Config.TranslationCacheDirectory.Value =
+                TranslationPaths.MigrateLegacyCacheDirectory(
+                    Paths.PluginPath,
+                    AbyssMod.Config.TranslationCacheDirectory.Value
+                );
+        }
+        catch (Exception e)
+        {
+            Logger.Warn($"Failed to migrate translation cache directory: {e.Message}");
+        }
+    }
+
+    private static void InitializeImageReplacements(
+        HttpClient imageClient,
+        HttpClient manifestClient
+    )
     {
         string replacementRoot = Path.Combine(
             Paths.PluginPath,
@@ -117,7 +167,8 @@ public class Plugin : BasePlugin
             AbyssMod.Config.TranslationCDN.Value,
             AbyssMod.Config.TranslationLanguage.Value,
             replacementRoot,
-            httpClient
+            imageClient,
+            manifestClient
         );
         cache.SyncAsync().GetAwaiter().GetResult();
         Images = new ImageReplacementManager(replacementRoot);
@@ -129,13 +180,23 @@ public class Plugin : BasePlugin
 
     public override bool Unload()
     {
-        SettingsMenuController.Shutdown();
-        EnhancePatch.FlushNovelLive2DScale();
+        if (Instance != null)
+        {
+            Instance.enabled = false;
+            UnityEngine.Object.Destroy(Instance);
+            Instance = null;
+        }
+        NovelLive2DScaleController.Shutdown();
         NovelStageVolumeController.Shutdown();
         PatchManager.Shutdown();
+        AbyssMod.Config.Shutdown();
         Images?.Dispose();
         Images = null;
+        Trans = null;
         _httpClient?.Dispose();
+        _httpClient = null;
+        _translationHttpClient?.Dispose();
+        _translationHttpClient = null;
         Toast.Clear();
         return base.Unload();
     }

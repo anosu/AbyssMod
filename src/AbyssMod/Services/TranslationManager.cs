@@ -2,9 +2,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using BepInEx.Unity.IL2CPP.Utils.Collections;
-using TMPro;
-using Utility.Assets;
 using Utility.Notifications;
 
 namespace AbyssMod.Services;
@@ -12,10 +9,11 @@ namespace AbyssMod.Services;
 /// <summary>
 /// 翻译协调层：持有所有运行时翻译数据，提供统一查询入口。
 /// </summary>
-public class TranslationManager
+internal sealed class TranslationManager
 {
     private readonly TranslationCache _cache;
-    private readonly AssetBundleLoader<TMP_FontAsset> _font;
+    private readonly bool _translateMasterData;
+    private readonly bool _translateUi;
     private readonly object _loadLock = new();
     private Task _loadTask;
     private volatile bool _staticTranslationsLoaded;
@@ -28,39 +26,17 @@ public class TranslationManager
 
     private readonly ConcurrentDictionary<string, Dictionary<string, string>> _novels = new();
 
-    public AssetBundleLoader<TMP_FontAsset> Font => _font;
-
-    public TranslationManager(TranslationCache cache, AssetBundleLoader<TMP_FontAsset> font)
+    public TranslationManager(TranslationCache cache, bool translateMasterData, bool translateUi)
     {
         _cache = cache;
-        _font = font;
-    }
-
-    public void Initialize()
-    {
-        Plugin.Instance.StartCoroutine(
-            _font
-                .Load(() =>
-                {
-                    Logger.Info($"Font loaded: {_font.Asset.name}");
-                    TMP_Settings.fallbackFontAssets.Add(_font.Asset);
-                })
-                .WrapToIl2Cpp()
-        );
-        _ = EnsureStaticTranslationsLoadedAsync();
+        _translateMasterData = translateMasterData;
+        _translateUi = translateUi;
     }
 
     // ── 静态翻译加载 ────────────────────────
 
     public Task EnsureStaticTranslationsLoadedAsync()
     {
-        if (
-            !Config.MasterDataTranslationEnabledAtStartup
-            && !Config.UiTranslationEnabledAtStartup
-            && !Config.Translation.Value
-        )
-            return Task.CompletedTask;
-
         lock (_loadLock)
         {
             if (
@@ -80,14 +56,11 @@ public class TranslationManager
         await _cache.FetchManifestAsync();
 
         var bundleTask =
-            Config.MasterDataTranslationEnabledAtStartup && _masterDataTranslator == null
+            _translateMasterData && _masterDataTranslator == null
                 ? _cache.LoadStaticBundleAsync()
                 : null;
         var namesTask = _names == null ? _cache.LoadAsync(TranslationPaths.Names) : null;
-        var uiTextsTask =
-            Config.UiTranslationEnabledAtStartup && _uiTexts == null
-                ? _cache.LoadUiTextsAsync()
-                : null;
+        var uiTextsTask = _translateUi && _uiTexts == null ? _cache.LoadUiTextsAsync() : null;
 
         if (bundleTask != null)
         {
@@ -139,8 +112,8 @@ public class TranslationManager
 
         _staticTranslationsLoaded =
             _names != null
-            && (!Config.MasterDataTranslationEnabledAtStartup || _masterDataTranslator != null)
-            && (!Config.UiTranslationEnabledAtStartup || _uiTexts != null);
+            && (!_translateMasterData || _masterDataTranslator != null)
+            && (!_translateUi || _uiTexts != null);
     }
 
     // ── 查询 API ────────────────────────────
@@ -165,8 +138,6 @@ public class TranslationManager
 
     internal bool MasterDataTranslationReady => _masterDataTranslator != null;
 
-    internal int MasterDataTranslationTableCount => _masterDataTranslator?.TableCount ?? 0;
-
     internal bool HasMasterDataTranslation(Il2CppSystem.Type cacheType) =>
         _masterDataTranslator?.Contains(cacheType) == true;
 
@@ -177,7 +148,7 @@ public class TranslationManager
     )
     {
         var translator = _masterDataTranslator;
-        if (Config.MasterDataTranslationEnabledAtStartup && translator != null)
+        if (translator != null)
             return translator.TryTranslate(cacheType, result, out translatedEntries);
 
         translatedEntries = 0;

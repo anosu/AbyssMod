@@ -9,7 +9,7 @@ namespace AbyssMod.Patches;
 
 /// <summary>把即将显示的游戏 Sprite 替换为 manifest 指定的本地图片。</summary>
 [HarmonyPatch]
-public static class ImageReplacementPatch
+internal static class ImageReplacementPatch
 {
     private static bool _errorLogged;
 

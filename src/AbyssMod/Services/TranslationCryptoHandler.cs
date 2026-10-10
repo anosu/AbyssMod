@@ -6,10 +6,16 @@ using System.Threading.Tasks;
 
 namespace AbyssMod.Services;
 
-public sealed class CryptoHandler : DelegatingHandler
+internal sealed class TranslationCryptoHandler : DelegatingHandler
 {
-    public CryptoHandler(HttpMessageHandler innerHandler)
-        : base(innerHandler) { }
+    private const long MaxResponseBytes = 64L * 1024 * 1024;
+    private readonly Func<(string Tag, string Key)> _getSettings;
+
+    public TranslationCryptoHandler(
+        HttpMessageHandler innerHandler,
+        Func<(string Tag, string Key)> getSettings
+    )
+        : base(innerHandler) => _getSettings = getSettings;
 
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
@@ -22,15 +28,23 @@ public sealed class CryptoHandler : DelegatingHandler
             if (response.Content != null)
             {
                 var originalContent = response.Content;
-                var data = await originalContent.ReadAsByteArrayAsync(cancellationToken);
+                var data = await HttpContentReader.ReadAsync(
+                    originalContent,
+                    MaxResponseBytes,
+                    cancellationToken
+                );
                 var decrypted = Decrypt(data);
-                if (!ReferenceEquals(data, decrypted))
+                // 限量读取消耗了原始网络流；未加密的响应也必须替换为可再次读取的内容。
+                var replacement = new ByteArrayContent(decrypted);
+                if (ReferenceEquals(data, decrypted))
                 {
-                    var replacement = new ByteArrayContent(decrypted);
-                    replacement.Headers.ContentType = originalContent.Headers.ContentType;
-                    response.Content = replacement;
-                    originalContent.Dispose();
+                    foreach (var header in originalContent.Headers)
+                        replacement.Headers.TryAddWithoutValidation(header.Key, header.Value);
                 }
+                else
+                    replacement.Headers.ContentType = originalContent.Headers.ContentType;
+                response.Content = replacement;
+                originalContent.Dispose();
             }
 
             return response;
@@ -42,9 +56,9 @@ public sealed class CryptoHandler : DelegatingHandler
         }
     }
 
-    private static byte[] Decrypt(byte[] data)
+    private byte[] Decrypt(byte[] data)
     {
-        string tag = Config.TranslationCryptoTag.Value;
+        var (tag, key) = _getSettings();
         if (string.IsNullOrEmpty(tag))
             return data;
 
@@ -55,7 +69,6 @@ public sealed class CryptoHandler : DelegatingHandler
         )
             return data;
 
-        string key = Config.TranslationCryptoKey.Value;
         if (string.IsNullOrEmpty(key))
             throw new InvalidOperationException("Translation crypto key cannot be empty");
 

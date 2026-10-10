@@ -61,7 +61,6 @@ internal sealed class UiTextIndex
 
         public UiTextPathRules(string path, Dictionary<string, string> translations)
         {
-            Path = path;
             IsWildcard = path.Contains('*', StringComparison.Ordinal);
             Specificity = path.Length - path.Count(character => character == '*');
             if (IsWildcard)
@@ -82,7 +81,6 @@ internal sealed class UiTextIndex
             }
         }
 
-        public string Path { get; }
         public bool IsWildcard { get; }
         public int Specificity { get; }
 

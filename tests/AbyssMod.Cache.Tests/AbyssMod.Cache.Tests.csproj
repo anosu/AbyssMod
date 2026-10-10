@@ -6,6 +6,42 @@
     </PropertyGroup>
     <ItemGroup>
         <Compile
+            Include="../../src/AbyssMod/Services/HttpContentReader.cs"
+            Link="Production/HttpContentReader.cs"
+        />
+        <Compile
+            Include="../../src/AbyssMod/Services/ImageReplacementCache.cs"
+            Link="Production/ImageReplacementCache.cs"
+        />
+        <Compile
+            Include="../../src/AbyssMod/Services/ImageReplacementRules.cs"
+            Link="Production/ImageReplacementRules.cs"
+        />
+        <Compile
+            Include="../../src/AbyssMod/Services/ImageReplacementPaths.cs"
+            Link="Production/ImageReplacementPaths.cs"
+        />
+        <Compile
+            Include="../../src/AbyssMod/Services/ImageReplacementLimits.cs"
+            Link="Production/ImageReplacementLimits.cs"
+        />
+        <Compile
+            Include="../../src/AbyssMod/Services/ImageFileValidation.cs"
+            Link="Production/ImageFileValidation.cs"
+        />
+        <Compile
+            Include="../../src/AbyssMod/Services/ImageCanvasLayout.cs"
+            Link="Production/ImageCanvasLayout.cs"
+        />
+        <Compile
+            Include="../../src/AbyssMod/Services/TranslationCryptoHandler.cs"
+            Link="Production/TranslationCryptoHandler.cs"
+        />
+        <Compile
+            Include="../../src/AbyssMod/Models/ImageReplacementManifest.cs"
+            Link="Production/ImageReplacementManifest.cs"
+        />
+        <Compile
             Include="../../shared/Utility/src/Utility/Caching/*.cs;../../shared/Utility/src/Utility/Cryptography/*.cs"
             Link="Shared/%(Filename)%(Extension)"
         />

@@ -51,7 +51,10 @@ namespace AbyssMod
 {
     internal static class Logger
     {
-        public static void Info(string message) { }
+        public static readonly System.Collections.Concurrent.ConcurrentQueue<string> Messages =
+            new();
+
+        public static void Info(string message) => Messages.Enqueue(message);
 
         public static void Warn(string message) =>
             throw new System.InvalidOperationException(message);

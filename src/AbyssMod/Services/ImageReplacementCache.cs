@@ -5,16 +5,17 @@ using System.Linq;
 using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using static AbyssMod.Services.ImageReplacementLimits;
+using static AbyssMod.Services.ImageReplacementPaths;
 
 namespace AbyssMod.Services;
 
 /// <summary>从翻译 CDN 同步带哈希校验的图片替换文件到本地缓存。</summary>
-public sealed class ImageReplacementCache
+internal sealed class ImageReplacementCache
 {
     private const string RemoteDirectory = "replacements";
-    private const string ReplacementManifestFile = "manifest.json";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -26,14 +27,22 @@ public sealed class ImageReplacementCache
     private readonly string _cdn;
     private readonly string _language;
     private readonly string _cacheRoot;
-    private readonly HttpClient _client;
+    private readonly HttpClient _imageClient;
+    private readonly HttpClient _manifestClient;
 
-    public ImageReplacementCache(string cdn, string language, string cacheRoot, HttpClient client)
+    public ImageReplacementCache(
+        string cdn,
+        string language,
+        string cacheRoot,
+        HttpClient imageClient,
+        HttpClient manifestClient
+    )
     {
         _cdn = cdn.TrimEnd('/');
         _language = language;
         _cacheRoot = Path.GetFullPath(cacheRoot);
-        _client = client;
+        _imageClient = imageClient;
+        _manifestClient = manifestClient;
     }
 
     public async Task SyncAsync()
@@ -49,13 +58,13 @@ public sealed class ImageReplacementCache
 
             Manifest mainManifest = await DownloadMainManifestAsync();
             var hashes = ValidateHashes(mainManifest?.Replacements);
-            if (!hashes.TryGetValue(ReplacementManifestFile, out string manifestHash))
+            if (!hashes.TryGetValue(ManifestFile, out string manifestHash))
                 throw new InvalidDataException(
-                    $"main manifest has no hash for {RemoteDirectory}/{ReplacementManifestFile}"
+                    $"main manifest has no hash for {RemoteDirectory}/{ManifestFile}"
                 );
 
             byte[] replacementManifestBytes = await GetVerifiedFileAsync(
-                ReplacementManifestFile,
+                ManifestFile,
                 manifestHash,
                 MaxManifestBytes
             );
@@ -99,13 +108,9 @@ public sealed class ImageReplacementCache
                 downloaded++;
             }
 
-            bool manifestChanged = !IsLocalFileValid(ReplacementManifestFile, manifestHash);
+            bool manifestChanged = !IsLocalFileValid(ManifestFile, manifestHash);
             if (manifestChanged)
-                await WriteStagedFileAsync(
-                    stagingRoot,
-                    ReplacementManifestFile,
-                    replacementManifestBytes
-                );
+                await WriteStagedFileAsync(stagingRoot, ManifestFile, replacementManifestBytes);
             else
                 cacheHits++;
 
@@ -145,7 +150,7 @@ public sealed class ImageReplacementCache
             "cacheBust",
             DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString()
         );
-        byte[] bytes = await DownloadBytesAsync(url, MaxManifestBytes);
+        byte[] bytes = await DownloadBytesAsync(_manifestClient, url, MaxManifestBytes);
         return JsonSerializer.Deserialize<Manifest>(bytes, JsonOptions)
             ?? throw new InvalidDataException("remote main manifest root is null");
     }
@@ -161,7 +166,7 @@ public sealed class ImageReplacementCache
             string normalized;
             try
             {
-                normalized = NormalizeRelativeFile(relativeFile, allowManifest: true);
+                normalized = NormalizeRemoteFile(relativeFile, allowManifest: true);
             }
             catch (InvalidDataException e)
             {
@@ -184,16 +189,16 @@ public sealed class ImageReplacementCache
 
         if (manifest.NovelBackgrounds != null)
             foreach (string file in manifest.NovelBackgrounds.Values)
-                result.Add(NormalizeRelativeFile(file, allowManifest: false));
+                result.Add(NormalizeRemoteFile(file, allowManifest: false));
 
         if (manifest.SpriteNames != null)
             foreach (string file in manifest.SpriteNames.Values)
-                result.Add(NormalizeRelativeFile(file, allowManifest: false));
+                result.Add(NormalizeRemoteFile(file, allowManifest: false));
 
         if (manifest.UiComponents != null)
             foreach (var rule in manifest.UiComponents)
                 if (rule != null)
-                    result.Add(NormalizeRelativeFile(rule.File, allowManifest: false));
+                    result.Add(NormalizeRemoteFile(rule.File, allowManifest: false));
 
         return result;
     }
@@ -217,7 +222,8 @@ public sealed class ImageReplacementCache
     )
     {
         string url = BuildReplacementUrl(relativeFile, expectedHash);
-        byte[] bytes = await DownloadBytesAsync(url, maxBytes);
+        var client = relativeFile == ManifestFile ? _manifestClient : _imageClient;
+        byte[] bytes = await DownloadBytesAsync(client, url, maxBytes);
         string actualHash = HashBytes(bytes);
         if (!string.Equals(actualHash, expectedHash, StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException(
@@ -227,20 +233,24 @@ public sealed class ImageReplacementCache
         return bytes;
     }
 
-    private async Task<byte[]> DownloadBytesAsync(string url, long maxBytes)
+    private static async Task<byte[]> DownloadBytesAsync(
+        HttpClient client,
+        string url,
+        long maxBytes
+    )
     {
-        using var response = await _client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+        // ResponseHeadersRead 不为后续响应体读取保留 HttpClient 的超时。
+        using var timeout = new CancellationTokenSource(client.Timeout);
+        using var response = await client.GetAsync(
+            url,
+            HttpCompletionOption.ResponseHeadersRead,
+            timeout.Token
+        );
         if (!response.IsSuccessStatusCode)
             throw new HttpRequestException(
                 $"GET {url} returned {(int)response.StatusCode} {response.StatusCode}"
             );
-        if (response.Content.Headers.ContentLength > maxBytes)
-            throw new InvalidDataException($"download exceeds {maxBytes} bytes: {url}");
-
-        byte[] bytes = await response.Content.ReadAsByteArrayAsync();
-        if (bytes.LongLength > maxBytes)
-            throw new InvalidDataException($"download exceeds {maxBytes} bytes: {url}");
-        return bytes;
+        return await HttpContentReader.ReadAsync(response.Content, maxBytes, timeout.Token);
     }
 
     private bool IsLocalFileValid(string relativeFile, string expectedHash)
@@ -250,7 +260,11 @@ public sealed class ImageReplacementCache
             && string.Equals(HashFile(localPath), expectedHash, StringComparison.OrdinalIgnoreCase);
     }
 
-    private async Task WriteStagedFileAsync(string stagingRoot, string relativeFile, byte[] bytes)
+    private static async Task WriteStagedFileAsync(
+        string stagingRoot,
+        string relativeFile,
+        byte[] bytes
+    )
     {
         string stagedPath = ResolveUnderRoot(stagingRoot, relativeFile);
         string directory = Path.GetDirectoryName(stagedPath);
@@ -270,7 +284,7 @@ public sealed class ImageReplacementCache
 
         // 清单最后替换，避免清单先指向尚未写入的图片。
         if (manifestChanged)
-            CommitStagedFile(stagingRoot, ReplacementManifestFile);
+            CommitStagedFile(stagingRoot, ManifestFile);
     }
 
     private void CommitStagedFile(string stagingRoot, string relativeFile)
@@ -289,20 +303,6 @@ public sealed class ImageReplacementCache
     private string ResolveLocalPath(string relativeFile) =>
         ResolveUnderRoot(_cacheRoot, relativeFile);
 
-    private static string ResolveUnderRoot(string root, string relativeFile)
-    {
-        string fullRoot = Path.GetFullPath(root);
-        string candidate = Path.GetFullPath(
-            Path.Combine(fullRoot, relativeFile.Replace('/', Path.DirectorySeparatorChar))
-        );
-        string rootPrefix =
-            fullRoot.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-            + Path.DirectorySeparatorChar;
-        if (!candidate.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidDataException($"replacement file escapes cache root: {relativeFile}");
-        return candidate;
-    }
-
     private string BuildReplacementUrl(string relativeFile, string expectedHash)
     {
         string url =
@@ -318,39 +318,6 @@ public sealed class ImageReplacementCache
         + "="
         + Uri.EscapeDataString(value);
 
-    private static string NormalizeRelativeFile(string relativeFile, bool allowManifest)
-    {
-        if (string.IsNullOrWhiteSpace(relativeFile))
-            throw new InvalidDataException("replacement file path is empty");
-
-        string normalized = relativeFile.Replace('\\', '/');
-        if (
-            normalized.StartsWith("/", StringComparison.Ordinal)
-            || normalized.Contains(':')
-            || normalized.IndexOf('\0') >= 0
-            || normalized.Split('/').Any(part => part is "" or "." or "..")
-        )
-            throw new InvalidDataException($"invalid replacement file path: {relativeFile}");
-
-        string extension = Path.GetExtension(normalized);
-        bool isManifest = string.Equals(
-            normalized,
-            ReplacementManifestFile,
-            StringComparison.OrdinalIgnoreCase
-        );
-        if (isManifest && allowManifest)
-            return ReplacementManifestFile;
-        if (
-            !string.Equals(extension, ".png", StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(extension, ".jpg", StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(extension, ".jpeg", StringComparison.OrdinalIgnoreCase)
-        )
-            throw new InvalidDataException(
-                $"unsupported replacement file extension: {relativeFile}"
-            );
-        return normalized;
-    }
-
     private static bool IsMd5(string value) =>
         value != null
         && value.Length == 32
@@ -360,8 +327,12 @@ public sealed class ImageReplacementCache
             || character is >= 'A' and <= 'F'
         );
 
-    private static string HashFile(string path) =>
-        Convert.ToHexString(MD5.HashData(File.ReadAllBytes(path))).ToLowerInvariant();
+    private static string HashFile(string path)
+    {
+        using var stream = File.OpenRead(path);
+        using var md5 = MD5.Create();
+        return Convert.ToHexString(md5.ComputeHash(stream)).ToLowerInvariant();
+    }
 
     private static string HashBytes(byte[] bytes) =>
         Convert.ToHexString(MD5.HashData(bytes)).ToLowerInvariant();
