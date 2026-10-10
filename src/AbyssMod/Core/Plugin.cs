@@ -180,6 +180,16 @@ public class Plugin : BasePlugin
 
     public override bool Unload()
     {
+        // 补丁卸载失败时保留它们访问的资源。
+        try
+        {
+            PatchManager.Shutdown();
+        }
+        catch (Exception error)
+        {
+            Logger.Warn($"Patch shutdown failed: {error}");
+            return false;
+        }
         if (Instance != null)
         {
             Instance.enabled = false;
@@ -188,10 +198,10 @@ public class Plugin : BasePlugin
         }
         NovelLive2DScaleController.Shutdown();
         NovelStageVolumeController.Shutdown();
-        PatchManager.Shutdown();
         AbyssMod.Config.Shutdown();
         Images?.Dispose();
         Images = null;
+        Trans?.Shutdown();
         Trans = null;
         _httpClient?.Dispose();
         _httpClient = null;

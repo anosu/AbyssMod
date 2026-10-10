@@ -8,6 +8,8 @@
 
 开发环境、Utility 源码引用和代码格式化见 [构建说明](https://github.com/anosu/ModEngineering/blob/main/docs/CONVENTIONS.md)。
 
+翻译会话在卸载时取消 manifest、静态资源和剧情请求，旧结果不会继续发布。补丁解除失败时保留运行依赖并拒绝卸载。字体可能被游戏文本持有，按进程生命周期保留，不支持热替换或强制销毁。
+
 使用时如遇到问题请务必先阅读下面的[常见问题](#-常见问题)
 
 ---
